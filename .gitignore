@@ -1,0 +1,14 @@
+node_modules/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+local.properties
+*.apk
+_prototype_backup/
+.vercel/
+android/.gradle/
+android/build/
+android/app/build/
+media/
+.claude/settings.local.json
