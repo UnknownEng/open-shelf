@@ -12,3 +12,8 @@ android/build/
 android/app/build/
 media/
 .claude/settings.local.json
+tools/video/node_modules/
+tools/video/package*.json
+tools/video/work-*/
+tools/video/shots/
+tools/video/cov-*.jpg
