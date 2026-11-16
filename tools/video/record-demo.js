@@ -133,14 +133,16 @@ async function main() {
     await page.fill('#q', '');
     await page.dispatchEvent('#q', 'input');
     const chip = page.locator('.chip', { hasText: 'Urdu adab' });
-    const cb = await chip.boundingBox();
+    await chip.first().scrollIntoViewIfNeeded();
+    const cb = await chip.first().boundingBox();
     await glide(page, cb.x + cb.width / 2, cb.y + cb.height / 2);
-    await chip.click();
+    await chip.first().click();
     await sleep(900);
     const all = page.locator('.chip', { hasText: 'All' });
-    const ab = await all.boundingBox();
+    await all.first().scrollIntoViewIfNeeded();
+    const ab = await all.first().boundingBox();
     await glide(page, ab.x + ab.width / 2, ab.y + ab.height / 2);
-    await all.click();
+    await all.first().click();
     await sleep(700);
   });
   const pickId = await page.evaluate(async () => {

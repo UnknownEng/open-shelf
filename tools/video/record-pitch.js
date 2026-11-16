@@ -48,6 +48,9 @@ async function main() {
     try { await cdp.send('Page.screencastFrameAck', { sessionId }); } catch { /* closed */ }
   });
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: 1920, maxHeight: 1080 });
+  // Keep frames flowing even when nothing moves, and only start once capture is live.
+  const ticker = setInterval(() => page.evaluate(() => { document.body.style.outlineColor = `rgba(0,0,0,${Math.random() * 0.01})`; }).catch(() => {}), 40);
+  for (let i = 0; i < 100 && frames.length < 5; i++) await sleep(50);
   await sleep(300);
 
   const marks = [];
@@ -58,6 +61,7 @@ async function main() {
   }
   marks.push(Date.now() / 1000);
   await sleep(400);
+  clearInterval(ticker);
   await cdp.send('Page.stopScreencast').catch(() => {});
   await browser.close();
 
