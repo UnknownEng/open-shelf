@@ -2,6 +2,8 @@
 
 A **white-label, credit-based book lending platform**. Readers borrow physical books with credits, return them for the next reader, and join waitlists when every copy is out. Libraries, campuses and partner platforms run their own branded tenant, with an admin console, a partner REST API, SSO hand-off and signed webhooks.
 
+**Live demo:** https://open-shelf-rho.vercel.app (self-seeding sandbox, data resets when the server restarts)
+
 Zero runtime dependencies: Node.js 22.13+ (built-in `node:sqlite`), vanilla JS front end.
 
 ## Quick start
