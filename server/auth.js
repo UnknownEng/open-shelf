@@ -8,21 +8,30 @@ const COOKIE = 'shelf_session';
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const token = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 
-function hashPassword(pw) {
+// scrypt runs on libuv's thread pool (async) so hashing never blocks other requests.
+const scrypt = (pw, salt) => new Promise((resolve, reject) => crypto.scrypt(pw, salt, 64, (err, key) => (err ? reject(err) : resolve(key))));
+
+/** Sync variant for CLI/seed scripts only — never call it while serving requests. */
+function hashPasswordSync(pw) {
   const salt = crypto.randomBytes(16);
   return `${salt.toString('hex')}:${crypto.scryptSync(pw, salt, 64).toString('hex')}`;
 }
 
-// Used when the account does not exist so login timing does not reveal registered emails.
-const DUMMY = hashPassword(token());
+async function hashPassword(pw) {
+  const salt = crypto.randomBytes(16);
+  return `${salt.toString('hex')}:${(await scrypt(pw, salt)).toString('hex')}`;
+}
 
-function verifyPassword(pw, stored) {
-  const [salt, hash] = String(stored || DUMMY).split(':');
+// Used when the account does not exist so login timing does not reveal registered emails.
+const DUMMY_SALT = crypto.randomBytes(16);
+
+async function verifyPassword(pw, stored) {
+  const [salt, hash] = String(stored || '').split(':');
   if (!salt || !hash || hash.length !== 128) {
-    crypto.scryptSync(pw, Buffer.from(DUMMY.split(':')[0], 'hex'), 64);
+    await scrypt(pw, DUMMY_SALT);
     return false;
   }
-  return crypto.timingSafeEqual(crypto.scryptSync(pw, Buffer.from(salt, 'hex'), 64), Buffer.from(hash, 'hex'));
+  return crypto.timingSafeEqual(await scrypt(pw, Buffer.from(salt, 'hex')), Buffer.from(hash, 'hex'));
 }
 
 function createSession(userId) {
@@ -69,6 +78,6 @@ const publicUser = (u) => u && {
 };
 
 module.exports = {
-  sha256, token, hashPassword, verifyPassword, createSession, sessionCookie, destroySession,
+  sha256, token, hashPassword, hashPasswordSync, verifyPassword, createSession, sessionCookie, destroySession,
   userFromRequest, apiKeyFromRequest, newApiKey, publicUser, USER_SQL,
 };

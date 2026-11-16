@@ -8,6 +8,7 @@ const lib = require('../services/library');
 const { adjustCredits } = require('../services/members');
 const { audit, emit } = require('../events');
 const { PRODUCTION } = require('../config');
+const { assertPublicUrl } = require('../netguard');
 
 const CONDITIONS = ['Like new', 'Good', 'Well-loved'];
 
@@ -245,6 +246,7 @@ module.exports = function adminRoutes(r) {
   r.post('/api/admin/webhooks', { ...A, summary: 'Subscribe a URL to events (secret shown once)' }, async (ctx) => {
     const b = await ctx.body();
     const url = v.httpsUrl(b.url, 'Webhook URL', { optional: false, allowLocalHttp: !PRODUCTION });
+    try { await assertPublicUrl(url); } catch (e) { throw new HttpError(400, e.message); }
     const events = v.str(b.events || '*', 'Events', { max: 300 });
     const secret = `whsec_${crypto.randomBytes(24).toString('base64url')}`;
     const hookId = id();

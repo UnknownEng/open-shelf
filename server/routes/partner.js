@@ -19,8 +19,9 @@ const { SSO_TOKEN_MINUTES, PUBLIC_URL } = require('../config');
 const P = { auth: 'partner', tag: 'Partner API v1' };
 const partnerActor = (ctx) => ({ id: null, label: `api:${ctx.apiKey.prefix}`, staff: true });
 
+/** Partner keys can only reach plain members. Staff/owner accounts are invisible to them (no SSO into admin accounts). */
 function memberOf(ctx) {
-  const m = one('SELECT id FROM users WHERE (id=? OR external_id=?) AND tenant_id=?', ctx.params.id, ctx.params.id, ctx.tenant.id);
+  const m = one("SELECT id FROM users WHERE (id=? OR external_id=?) AND tenant_id=? AND role='member'", ctx.params.id, ctx.params.id, ctx.tenant.id);
   if (!m) throw new HttpError(404, 'Member not found.');
   return getMember(m.id);
 }
@@ -47,13 +48,13 @@ module.exports = function partnerRoutes(r) {
   r.get('/api/v1/members', { ...P, summary: 'List members (filter by email or externalId)' }, (ctx) => {
     const email = (ctx.query.get('email') || '').toLowerCase();
     const ext = ctx.query.get('externalId') || '';
-    return all(`${auth.USER_SQL} WHERE u.tenant_id=? AND (?='' OR u.email=?) AND (?='' OR u.external_id=?) ORDER BY u.created_at DESC LIMIT 500`,
+    return all(`${auth.USER_SQL} WHERE u.tenant_id=? AND u.role='member' AND (?='' OR u.email=?) AND (?='' OR u.external_id=?) ORDER BY u.created_at DESC LIMIT 500`,
       ctx.tenant.id, email, email, ext, ext).map((u) => ({ ...auth.publicUser(u), externalId: u.external_id }));
   });
 
   r.post('/api/v1/members', { ...P, summary: 'Provision a member from your platform (SSO-only, no password)' }, async (ctx) => {
     const b = await ctx.body();
-    const m = createMember(ctx.tenant, {
+    const m = await createMember(ctx.tenant, {
       name: v.str(b.name, 'Name', { min: 2, max: 70 }),
       email: v.email(b.email),
       city: v.str(b.city, 'City', { max: 70, optional: true }),

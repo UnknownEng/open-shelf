@@ -35,9 +35,11 @@ require('./routes/public')(router);
 require('./routes/admin')(router);
 require('./routes/partner')(router);
 
-router.get('/api/openapi.json', { summary: 'OpenAPI 3.1 description of this API', tag: 'System' }, () => {
+router.get('/api/openapi.json', { summary: 'OpenAPI 3.1 description of this API', tag: 'System' }, (ctx) => {
   const paths = {};
+  const staff = ['admin', 'owner'].includes(ctx.user?.role);
   for (const r of router.routes) {
+    if (!staff && (r.auth === 'admin' || r.auth === 'owner')) continue; // staff-only routes are listed for staff only
     const p = r.path.replace(/:(\w+)/g, '{$1}');
     paths[p] = paths[p] || {};
     paths[p][r.method.toLowerCase()] = {

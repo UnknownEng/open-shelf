@@ -11,10 +11,7 @@ const { audit } = require('../events');
 module.exports = function publicRoutes(r) {
   const T = 'Members';
 
-  r.get('/api/health', { summary: 'Service health check', tag: 'System' }, () => ({
-    ok: true, version: require('../config').VERSION, uptimeSeconds: Math.round(process.uptime()),
-    db: !!one('SELECT 1 AS ok'),
-  }));
+  r.get('/api/health', { summary: 'Service health check', tag: 'System' }, () => ({ ok: true, db: !!one('SELECT 1 AS ok') }));
 
   r.get('/api/tenant', { summary: 'Public branding for the current library', tag: 'System' }, (ctx) => {
     const t = ctx.tenant;
@@ -36,7 +33,7 @@ module.exports = function publicRoutes(r) {
   r.post('/api/auth/register', { summary: 'Create a member account', tag: 'Auth' }, async (ctx) => {
     limit(`register:${ctx.ip}`, 10, 60 * 60_000);
     const b = await ctx.body();
-    const member = createMember(ctx.tenant, {
+    const member = await createMember(ctx.tenant, {
       name: v.str(b.name, 'Name', { min: 2, max: 70 }),
       email: v.email(b.email),
       city: v.str(b.city, 'City', { min: 2, max: 70 }),
@@ -54,7 +51,7 @@ module.exports = function publicRoutes(r) {
     const email = String(b.email || '').trim().toLowerCase();
     limit(`login-email:${email}`, 8, 15 * 60_000);
     const row = one('SELECT id, password_hash, status FROM users WHERE email=?', email);
-    if (!auth.verifyPassword(String(b.password || ''), row?.password_hash)) throw new HttpError(401, 'Email or password is incorrect.');
+    if (!(await auth.verifyPassword(String(b.password || ''), row?.password_hash))) throw new HttpError(401, 'Email or password is incorrect.');
     if (row.status === 'suspended') throw new HttpError(403, 'This membership is suspended. Please contact the library.');
     ctx.headers['Set-Cookie'] = auth.sessionCookie(auth.createSession(row.id));
     return { user: auth.publicUser(one(`${auth.USER_SQL} WHERE u.id=?`, row.id)) };
@@ -69,7 +66,7 @@ module.exports = function publicRoutes(r) {
   r.get('/api/auth/sso', { summary: 'Redeem a one-time partner login link (redirects into the app)', tag: 'Auth' }, (ctx) => {
     limit(`sso:${ctx.ip}`, 30, 15 * 60_000);
     const tok = String(ctx.query.get('token') || '');
-    const row = tok && one('SELECT * FROM sso_tokens WHERE token_hash=? AND used_at IS NULL AND expires_at>?', auth.sha256(tok), Date.now());
+    const row = tok && one("SELECT t.* FROM sso_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.used_at IS NULL AND t.expires_at>? AND u.role='member' AND u.status='active'", auth.sha256(tok), Date.now());
     if (!row) return ctx.redirect('/#/?sso=expired');
     run('UPDATE sso_tokens SET used_at=? WHERE token_hash=?', now(), row.token_hash);
     ctx.headers['Set-Cookie'] = auth.sessionCookie(auth.createSession(row.user_id));
@@ -94,8 +91,8 @@ module.exports = function publicRoutes(r) {
     limit(`pw:${ctx.user.id}`, 5, 15 * 60_000);
     const b = await ctx.body();
     const row = one('SELECT password_hash FROM users WHERE id=?', ctx.user.id);
-    if (row.password_hash !== 'sso-only' && !auth.verifyPassword(String(b.currentPassword || ''), row.password_hash)) throw new HttpError(401, 'Current password is incorrect.');
-    run('UPDATE users SET password_hash=? WHERE id=?', auth.hashPassword(v.password(b.newPassword)), ctx.user.id);
+    if (row.password_hash !== 'sso-only' && !(await auth.verifyPassword(String(b.currentPassword || ''), row.password_hash))) throw new HttpError(401, 'Current password is incorrect.');
+    run('UPDATE users SET password_hash=? WHERE id=?', await auth.hashPassword(v.password(b.newPassword)), ctx.user.id);
     run('DELETE FROM sessions WHERE user_id=?', ctx.user.id);
     ctx.headers['Set-Cookie'] = auth.sessionCookie(auth.createSession(ctx.user.id));
     audit(ctx.tenant.id, ctx.user, 'member.password_changed', ctx.user.id);

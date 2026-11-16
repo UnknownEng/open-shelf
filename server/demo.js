@@ -8,7 +8,7 @@
  *   reader@openshelf.test  / DemoReader!2026  (member)
  */
 const { migrate, one, all, run, tx, id } = require('./db');
-const { hashPassword } = require('./auth');
+const { hashPasswordSync: hashPassword } = require('./auth');
 const { seedCatalogue } = require('./seed');
 
 

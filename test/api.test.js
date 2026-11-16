@@ -67,7 +67,9 @@ test('health, catalogue and OpenAPI are public', async () => {
   assert.equal(books.data.items.length, 5);
   assert.ok(books.data.total >= 20);
   const spec = await c.get('/api/openapi.json');
-  assert.ok(Object.keys(spec.data.paths).length > 40);
+  const paths = Object.keys(spec.data.paths);
+  assert.ok(paths.some((p) => p.startsWith('/api/v1/')), 'partner API is documented publicly');
+  assert.ok(!paths.some((p) => p.startsWith('/api/admin/')), 'staff-only routes are hidden from the public spec');
 });
 
 test('registration validates input and rejects duplicates', async () => {
@@ -238,9 +240,22 @@ test('partner API: keys, provisioning, credit grants, SSO hand-off and signed we
   const loans = await p.get('/api/v1/loans?status=active', auth);
   assert.ok(loans.data.some((l) => l.memberExternalId === mem.data.externalId));
 
+  // Red-team regression: partner keys must never reach staff/owner accounts (no SSO takeover).
+  assert.deepEqual((await p.get(`/api/v1/members?email=${encodeURIComponent(staff.email)}`, auth)).data, [], 'staff hidden from partner listing');
+  assert.equal((await p.post(`/api/v1/members/${staff.user.id}/login-link`, {}, auth)).status, 404, 'no login link for staff');
+  assert.equal((await p.post(`/api/v1/members/${staff.user.id}/credits`, { delta: 5 }, auth)).status, 404, 'no credit grants to staff');
+
   // Revoked keys stop working.
   const keys = (await staff.get('/api/admin/api-keys')).data;
   await staff.del(`/api/admin/api-keys/${keys[0].id}`);
   assert.equal((await p.get('/api/v1/books', auth)).status, 401);
   hookServer.close();
+});
+
+test('SSRF guard classifies internal addresses (used for webhooks in production)', () => {
+  const { isPrivateIp, isPrivateHostname } = require('../server/netguard');
+  for (const ip of ['127.0.0.1', '10.1.2.3', '172.20.0.1', '192.168.1.5', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1']) assert.equal(isPrivateIp(ip), true, ip);
+  for (const ip of ['8.8.8.8', '1.1.1.1', '2606:4700:4700::1111']) assert.equal(isPrivateIp(ip), false, ip);
+  for (const h of ['localhost', 'db.internal', 'printer.local', 'intranet', '[::1]']) assert.equal(isPrivateHostname(h), true, h);
+  assert.equal(isPrivateHostname('hooks.partner.example.com'), false);
 });

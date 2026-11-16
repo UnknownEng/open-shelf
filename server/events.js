@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const { one, all, run, now, id } = require('./db');
+const { assertPublicUrl } = require('./netguard');
 
 /** In-app notification for a member. */
 function notify(userId, kind, title, body = '') {
@@ -30,6 +31,7 @@ async function deliver(hook, event, data) {
   const started = Date.now();
   let status = 'failed', code = null;
   try {
+    await assertPublicUrl(hook.url); // re-checked at send time (defeats DNS rebinding)
     const res = await fetch(hook.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'OpenShelf-Webhooks/1.0', 'X-OpenShelf-Event': event, 'X-OpenShelf-Signature': `sha256=${signature}` },
