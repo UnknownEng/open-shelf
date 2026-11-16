@@ -10,8 +10,8 @@ export function safeUrl(s = '') {
 }
 
 const PALETTES = [
-  ['#2b3a67', '#7c5cbf'], ['#7a2e3a', '#e0794f'], ['#1f4d45', '#4fb39a'], ['#5b3b1f', '#d89b45'],
-  ['#2d2a4a', '#e05f8a'], ['#1d3b5c', '#5aa6d6'], ['#4a2340', '#c06c84'], ['#33402a', '#a3b85b'],
+  ['#ff4fa3', '#7b2ff7'], ['#0a8f55', '#01411c'], ['#4d5bff', '#00a3ff'], ['#ff7a1a', '#e1264b'],
+  ['#7b2ff7', '#4d5bff'], ['#0bb3a3', '#016b5f'], ['#e1264b', '#9d0f4a'], ['#121212', '#3d3d3d'],
 ];
 const GLYPHS = ['✳', '☾', '✦', '❋', '◐', '✺', '❖', '☼'];
 export function palette(key = '') {
@@ -29,7 +29,7 @@ export function cover(b, extra = '') {
   const { glyph } = palette(b.id || b.bookId || b.title);
   const src = safeUrl(b.cover);
   return `<div class="cover ${extra}" style="${coverVars(b)}">
-    <div class="gen"><small>${esc((b.author || '').split(' ').slice(-1)[0])}</small><b>${esc(b.title)}</b><i>${glyph}</i></div>
+    <div class="gen"><small>${esc((b.author || '').split(' ').slice(-1)[0])}</small>${b.altTitle ? `<span class="urdu" lang="ur">${esc(b.altTitle)}</span>` : ''}<b>${esc(b.title)}</b><i>${glyph}</i></div>
     ${src ? `<img class="cover-img" src="${esc(src)}" alt="" loading="lazy" decoding="async">` : ''}
   </div>`;
 }
@@ -50,8 +50,10 @@ export function stars(r = 0) {
   return `<span class="stars" aria-label="${r || 0} out of 5">${'★'.repeat(full)}<span class="off">${'★'.repeat(5 - full)}</span></span>`;
 }
 
-export const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-export const fmtShort = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const LOCALE = 'en-PK';
+const TZ = 'Asia/Karachi';
+export const fmtDate = (iso) => new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ });
+export const fmtShort = (iso) => new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', timeZone: TZ });
 export function relTime(iso) {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
   if (s < 60) return 'just now';

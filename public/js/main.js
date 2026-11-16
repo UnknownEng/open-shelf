@@ -15,7 +15,14 @@ const ROUTES = {
 let cleanup = null;
 let lastPath = null;
 
+const onAdminPath = () => /^\/admin(\/|$)/.test(location.pathname);
+
 function parseHash() {
+  // The staff console lives at its own URL: /admin or /admin/<tab>.
+  if (onAdminPath()) {
+    const sub = location.pathname.split('/')[2] || (location.hash.match(/^#\/admin\/(\w+)/) || [])[1];
+    return { view: 'admin', sub, anchor: null, query: new URLSearchParams(location.search) };
+  }
   const raw = location.hash.replace(/^#\/?/, '');
   const [pathPart, anchor] = raw.split('#');
   const [path, query] = pathPart.split('?');
@@ -24,6 +31,10 @@ function parseHash() {
 }
 
 async function route() {
+  // From /admin, any normal in-app link (#/browse, #/) leaves the console for the main site.
+  if (onAdminPath() && location.hash && !location.hash.startsWith('#/admin')) { location.replace(`/${location.hash}`); return; }
+  // Old-style #/admin links move to the dedicated /admin URL.
+  if (!onAdminPath() && location.hash.startsWith('#/admin')) { location.replace(`/admin${location.hash.replace(/^#\/admin/, '')}`); return; }
   const { view, sub, anchor, query } = parseHash();
   const key = `${view}/${view === 'admin' ? '' : sub || ''}`;
   if (query.get('sso') === 'expired') toast('That sign-in link has expired. Please request a new one.', 'error');
@@ -103,7 +114,7 @@ function toggleAccountMenu() {
   menu.innerHTML = `<div class="menu-head"><b>${esc(me.name)}</b><small>${esc(me.email)}</small></div>
     <a class="menu-item" href="#/shelf">📚 My shelf</a>
     <a class="menu-item" href="#/browse">🔍 Browse books</a>
-    ${store.isStaff ? '<a class="menu-item" href="#/admin">📊 Staff console</a>' : ''}
+    ${store.isStaff ? '<a class="menu-item" href="/admin">📊 Staff console</a>' : ''}
     <button class="menu-item" id="menuTheme">◐ Switch light / dark</button>
     <button class="menu-item" id="signOut">↪ Sign out</button>`;
   menu.classList.add('open');
@@ -123,12 +134,12 @@ function toggleAccountMenu() {
 function initTheme() {
   let saved = null;
   try { saved = localStorage.getItem('theme'); } catch { /* storage blocked */ }
-  const theme = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const theme = saved || 'light'; // Gen-Z cream paper look by default
   document.documentElement.dataset.theme = theme;
   $('#themeToggle').addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
-    $('meta[name=theme-color]').content = next === 'dark' ? '#0a0c13' : '#f6f2ea';
+    $('meta[name=theme-color]').content = next === 'dark' ? '#111111' : '#fff4e0';
     try { localStorage.setItem('theme', next); } catch { /* ignore */ }
   });
 }

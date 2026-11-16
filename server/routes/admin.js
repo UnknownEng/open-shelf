@@ -140,6 +140,39 @@ module.exports = function adminRoutes(r) {
     return { ok: true };
   });
 
+  r.get('/api/admin/members/:id', { ...A, summary: 'Member detail: profile, loans, waitlist and credit ledger' }, (ctx) => {
+    const m = one(`${require('../auth').USER_SQL} WHERE u.id=? AND u.tenant_id=?`, ctx.params.id, ctx.tenant.id);
+    if (!m) throw new HttpError(404, 'Member not found.');
+    return {
+      ...auth.publicUser(m), lastLoginAt: one('SELECT last_login_at AS t FROM users WHERE id=?', m.id).t, externalId: m.external_id,
+      shelf: lib.shelf(m),
+      ledger: all('SELECT delta, reason, created_at AS createdAt FROM credit_ledger WHERE user_id=? ORDER BY created_at DESC LIMIT 50', m.id),
+    };
+  });
+
+  r.get('/api/admin/export/:kind', { ...A, summary: 'Download CSV export: books, members, loans or audit' }, (ctx) => {
+    const kind = v.oneOf(ctx.params.kind, 'Export', ['books', 'members', 'loans', 'audit']);
+    const tid = ctx.tenant.id;
+    const queries = {
+      books: ["SELECT id,title,author,category,condition,isbn,total_copies,archived,created_at FROM books WHERE tenant_id=? ORDER BY title", tid],
+      members: ['SELECT id,name,email,city,role,status,credits,external_id,created_at,last_login_at FROM users WHERE tenant_id=? ORDER BY created_at', tid],
+      loans: [`SELECT l.id,b.title,u.name AS member,u.email,l.status,l.borrowed_at,l.due_at,l.returned_at,l.renewals
+        FROM loans l JOIN books b ON b.id=l.book_id JOIN users u ON u.id=l.user_id WHERE l.tenant_id=? ORDER BY l.borrowed_at DESC`, tid],
+      audit: ['SELECT created_at,actor_label,action,target,meta FROM audit_log WHERE tenant_id=? ORDER BY created_at DESC LIMIT 5000', tid],
+    };
+    const rows = all(...queries[kind]);
+    // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR at the start of a cell).
+    const cell = (val) => {
+      let s = val === null || val === undefined ? '' : String(val);
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const cols = rows.length ? Object.keys(rows[0]) : [];
+    const csv = [cols.join(','), ...rows.map((row) => cols.map((c) => cell(row[c])).join(','))].join('\r\n');
+    audit(tid, ctx.user, 'export.downloaded', kind, { rows: rows.length });
+    return { __raw: `﻿${csv}`, type: 'text/csv; charset=utf-8', filename: `openshelf-${kind}-${new Date().toISOString().slice(0, 10)}.csv` };
+  });
+
   // ---------------------------------------------------------------- circulation
   r.get('/api/admin/loans', { ...A, summary: 'Loans by status: active, overdue, returned' }, (ctx) => {
     const status = v.oneOf(ctx.query.get('status'), 'Status', ['active', 'overdue', 'returned', 'all'], 'active');
@@ -251,7 +284,7 @@ module.exports = function adminRoutes(r) {
     if (one('SELECT id FROM tenants WHERE slug=?', slug)) throw new HttpError(409, 'That slug is taken.');
     const tenantId = id();
     run('INSERT INTO tenants(id,slug,name,brand_color,plan,created_at) VALUES(?,?,?,?,?,?)', tenantId, slug,
-      v.str(b.name, 'Name', { min: 2, max: 60 }), v.color(b.brandColor, '#f4b860'), v.oneOf(b.plan, 'Plan', ['starter', 'growth', 'enterprise'], 'starter'), now());
+      v.str(b.name, 'Name', { min: 2, max: 60 }), v.color(b.brandColor, '#c8ff3d'), v.oneOf(b.plan, 'Plan', ['starter', 'growth', 'enterprise'], 'starter'), now());
     audit(ctx.tenant.id, ctx.user, 'tenant.created', tenantId, { slug });
     ctx.status = 201;
     return one('SELECT * FROM tenants WHERE id=?', tenantId);

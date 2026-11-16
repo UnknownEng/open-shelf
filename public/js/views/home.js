@@ -28,12 +28,13 @@ export async function renderHome(app, { anchor } = {}) {
   app.innerHTML = `
   <section class="wrap hero">
     <div class="hero-copy">
-      <div data-reveal><span class="eyebrow"><span class="pulse-dot"></span>${stats.onLoanNow} books travelling between readers right now</span></div>
-      <h1 id="heroTitle">Every book deserves <em>another reader.</em></h1>
-      <p class="hero-sub" data-reveal style="--i:3">Borrow real paperbacks with credits, keep them for ${store.tenant?.loanDays || 21} days, then pass them on. ${esc(brand)} turns every shelf into a shared, living library.</p>
+      <div data-reveal><span class="eyebrow"><span class="pulse-dot"></span>🇵🇰 ${stats.onLoanNow} books moving around Pakistan rn</span></div>
+      <h1 id="heroTitle">Read it. Pass it. <em>Repeat.</em></h1>
+      <p class="hero-sub" data-reveal style="--i:3">Borrow real books with credits, keep them ${store.tenant?.loanDays || 21} days, pass them on. <b>No fines. No fees.</b> Just a shared shelf from Lahore to Karachi to Isloo.</p>
+      <p class="roman" data-reveal style="--i:3">kitaab parho · aagay barhao · repeat karo</p>
       <div class="hero-ctas" data-reveal style="--i:4">
-        <a class="btn btn-primary lg magnetic" href="#/browse"><span>Explore the shelves</span> <span class="arrow">↗</span></a>
-        <a class="btn btn-ghost lg" href="#/#platforms">For platforms &amp; partners</a>
+        <a class="btn btn-primary lg magnetic" href="#/browse"><span>Find your next read</span> <span class="arrow">↗</span></a>
+        <a class="btn btn-ghost lg" href="#/#platforms">For partners</a>
       </div>
       <div class="hero-stats" data-reveal style="--i:5">
         <div><b data-count="${stats.titles}">0</b><span>titles</span></div>
@@ -48,17 +49,21 @@ export async function renderHome(app, { anchor } = {}) {
         ${flyers.map(({ f, b }) => `<button class="flyer" data-book="${esc(b.id)}" tabindex="-1" style="--x:${f.x};--y:${f.y};--z:${f.z}px;--rz:${f.rz}deg;--dur:${f.dur}s;--delay:${f.delay}s">${book3d(b, `--ry:${f.ry}deg;--rx:${f.rx}deg`)}</button>`).join('')}
         ${Array.from({ length: 5 }, (_, i) => `<span class="page-fly" style="left:${10 + i * 12}%;top:${55 + (i % 3) * 10}%;--dur:${11 + i * 2}s;--delay:${-i * 2.6}s"></span>`).join('')}
       </div>
-      <div class="float-card" style="left:2%;top:12%"><span class="fc-ico">📚</span><div><b>${stats.copies} copies</b><small>on the shelves</small></div></div>
-      <div class="float-card" style="right:0;bottom:16%;animation-delay:-3s"><span class="fc-ico" style="background:color-mix(in srgb,var(--good) 18%,transparent)">↩</span><div><b>Returned & re-lent</b><small>credits flow back instantly</small></div></div>
+      <span class="sticker urdu-sticker" lang="ur" style="left:4%;top:8%;--r:-8deg">کتاب دوستی</span>
+      <span class="sticker s-sun" style="right:2%;top:4%;--r:7deg;animation-delay:-1s">✨ 3 free credits</span>
+      <span class="sticker s-pink" style="left:0;bottom:14%;--r:5deg;animation-delay:-2s">no fines fr 💅</span>
+      <span class="sticker s-blue" style="right:4%;bottom:6%;--r:-5deg;animation-delay:-3s">📍 ${stats.copies} copies near you</span>
     </div>
     <a class="scroll-hint" href="#how"><i></i>Scroll</a>
   </section>
 
+  <div class="ticker"><div class="ticker-track">${Array.from({ length: 2 }, () => ['3 free credits', 'no fines', 'Lahore', 'Karachi', 'Islamabad', 'Peshawar', 'Multan', 'Urdu adab', 'Faiz', 'Iqbal', 'Manto', 'Mohsin Hamid'].map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>
+  <div class="ticker alt"><div class="ticker-track">${Array.from({ length: 2 }, () => ['borrow', 'read', 'return', 'repeat', 'kitaab parho', 'aagay barhao', 'shelf goals', 'main character energy'].map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>
   <div class="marquee" data-reveal><div class="marquee-track">${[...rowA, ...rowA].map((b) => `<button data-book="${esc(b.id)}" aria-label="${esc(b.title)}">${cover(b)}</button>`).join('')}</div></div>
   <div class="marquee reverse" style="border-top:0"><div class="marquee-track">${[...rowB, ...rowB].map((b) => `<button data-book="${esc(b.id)}" aria-label="${esc(b.title)}">${cover(b)}</button>`).join('')}</div></div>
 
   <section class="section wrap" id="how">
-    <div class="section-head"><span class="eyebrow" data-reveal>How it works</span><h2 data-reveal style="--i:1">Three steps. <em class="grad-text">Stories keep moving.</em></h2></div>
+    <div class="section-head"><span class="eyebrow" data-reveal>How it works</span><h2 data-reveal style="--i:1">Three steps. <em>That's it.</em></h2></div>
     <div class="steps">
       <svg class="steps-line" viewBox="0 0 100 2" preserveAspectRatio="none"><path d="M0 1 H100"/></svg>
       ${[
@@ -103,7 +108,7 @@ export async function renderHome(app, { anchor } = {}) {
         </div>
         <div data-reveal="right">
           <div class="terminal"><div class="term-bar"><i></i><i></i><i></i><span>partner-integration.sh</span></div><pre class="term-body" id="term"></pre></div>
-          <div class="logos"><span>Campus libraries</span><span>Telco rewards</span><span>Bookstores</span><span>HR benefits</span><span>Super-apps</span></div>
+          <div class="logos"><span>University libraries</span><span>Telco loyalty apps</span><span>Urdu Bazaar to mall bookstores</span><span>Office benefits</span><span>Super-apps</span></div>
         </div>
       </div>
       <div class="plans">
@@ -124,13 +129,13 @@ export async function renderHome(app, { anchor } = {}) {
   <section class="wrap" style="padding-bottom:20px">
     <div class="cta-band" data-reveal="zoom">
       <span class="eyebrow">Ready when you are</span>
-      <h2>Your next favourite book is <em>already on someone's shelf.</em></h2>
+      <h2>Your next fave book is <em>already on someone's shelf.</em></h2>
       <div class="hero-ctas" style="justify-content:center">
-        ${store.me ? '<a class="btn btn-primary lg magnetic" href="#/browse"><span>Find a book</span> <span class="arrow">↗</span></a>' : '<button class="btn btn-primary lg magnetic" id="ctaJoin"><span>Join free — get 3 credits</span> <span class="arrow">↗</span></button>'}
-        ${store.isStaff ? '<a class="btn btn-ghost lg" href="#/admin">Open console</a>' : ''}
+        ${store.me ? '<a class="btn btn-primary lg magnetic" href="#/browse"><span>Find a book</span> <span class="arrow">↗</span></a>' : '<button class="btn btn-primary lg magnetic" id="ctaJoin"><span>Join free — 3 credits on us</span> <span class="arrow">↗</span></button>'}
+        ${store.isStaff ? '<a class="btn btn-ghost lg" href="/admin">Open console</a>' : ''}
       </div>
     </div>
-    <footer class="footer"><span>© ${new Date().getFullYear()} ${esc(brand)} · A shared library for readers</span>
+    <footer class="footer"><span>© ${new Date().getFullYear()} ${esc(brand)} · Made in Pakistan 🇵🇰 for readers</span>
       <nav><a href="#/browse">Browse</a><a href="#/#platforms">Platforms</a><a href="/api/openapi.json" target="_blank" rel="noopener">API</a></nav></footer>
   </section>`;
 

@@ -106,6 +106,10 @@ async function handleApi(req, res, url) {
 
     const data = await route.handler(ctx);
     if (ctx.status === 302) { res.writeHead(302, { ...SECURITY_HEADERS, 'Cache-Control': 'no-store', ...ctx.headers }); return res.end(); }
+    if (data && typeof data.__raw === 'string') {
+      res.writeHead(200, { ...SECURITY_HEADERS, 'Cache-Control': 'no-store', 'Content-Type': data.type, 'Content-Disposition': `attachment; filename="${data.filename}"`, ...ctx.headers });
+      return res.end(data.__raw);
+    }
     sendJson(res, ctx.status, data, ctx.headers);
   } catch (err) {
     if (err instanceof HttpError) {

@@ -1,11 +1,11 @@
 'use strict';
 const { one, run, tx, now } = require('./db');
 
-// [id, title, author, category, condition, isbn, copies, description]
+// [id, title, author, category, condition, isbn, copies, description, urduTitle?]
 const CATALOGUE = [
-  ['b1', 'The Forty Rules of Love', 'Elif Shafak', 'Fiction', 'Good', '9780143426176', 2, 'A much-loved story about Rumi and Shams, told across two centuries.'],
+  ['b1', 'The Forty Rules of Love', 'Elif Shafak', 'Fiction', 'Good', '9780143118527', 2, 'A much-loved story about Rumi and Shams, told across two centuries.'],
   ['b2', 'Atomic Habits', 'James Clear', 'Personal growth', 'Like new', '9780735211292', 3, 'A clear, practical guide to building small habits that compound.'],
-  ['b3', 'A Case of Exploding Mangoes', 'Mohammed Hanif', 'Fiction', 'Good', '9788184001754', 1, 'Funny, sharp and very readable political satire.'],
+  ['b3', 'A Case of Exploding Mangoes', 'Mohammed Hanif', 'Fiction', 'Good', '9780307388179', 1, 'Funny, sharp and very readable political satire.'],
   ['b4', 'The Alchemist', 'Paulo Coelho', 'Fiction', 'Like new', '9780062315007', 2, 'A classic fable about listening to your heart and following a dream.'],
   ['b5', 'Sapiens', 'Yuval Noah Harari', 'Non-fiction', 'Good', '9780099590088', 2, 'A sweeping history of humankind, from foragers to the future.'],
   ['b6', 'The Little Prince', 'Antoine de Saint-Exupéry', 'Children', 'Good', '9780156012195', 1, 'A lovely illustrated edition of the timeless tale.'],
@@ -23,16 +23,33 @@ const CATALOGUE = [
   ['b18', 'Deep Work', 'Cal Newport', 'Personal growth', 'Like new', '9781455586691', 1, 'Rules for focused success in a distracted world.'],
   ['b19', "Man's Search for Meaning", 'Viktor E. Frankl', 'Memoir', 'Good', '9780807014271', 1, 'A psychiatrist on finding purpose in the darkest places.'],
   ['b20', 'Where the Crawdads Sing', 'Delia Owens', 'Fiction', 'Good', '9780735219090', 1, 'A coming-of-age mystery set in the marshes of North Carolina.'],
+  ['b21', 'The Reluctant Fundamentalist', 'Mohsin Hamid', 'Pakistani fiction', 'Good', '9780151013043', 2, 'A Lahore café, an American stranger and one long, unsettling conversation.'],
+  ['b22', 'Exit West', 'Mohsin Hamid', 'Pakistani fiction', 'Like new', '9780735212176', 2, 'Two lovers, a city at war, and doors that open onto the rest of the world.'],
+  ['b23', 'Home Fire', 'Kamila Shamsie', 'Pakistani fiction', 'Good', '9780735217683', 1, 'A family torn between loyalty, faith and love — Antigone, reimagined.'],
+  ['b24', 'Cracking India', 'Bapsi Sidhwa', 'Pakistani fiction', 'Well-loved', '9781571310637', 1, 'Partition in Lahore, seen through the eyes of a young Parsi girl.'],
+  ['b25', 'In Other Rooms, Other Wonders', 'Daniyal Mueenuddin', 'Pakistani fiction', 'Good', '9780393337204', 1, 'Linked stories of servants, landlords and lovers on a Punjab estate.'],
+  ['b26', 'Peer-e-Kamil', 'Umera Ahmed', 'Urdu adab', 'Good', null, 3, 'The Urdu novel half of Pakistan has read — faith, love and finding your way.', 'پیرِ کامل'],
+  ['b27', 'Raja Gidh', 'Bano Qudsia', 'Urdu adab', 'Well-loved', null, 1, 'A modern Urdu classic about desire, conscience and what we owe each other.', 'راجہ گدھ'],
+  ['b28', 'Zavia', 'Ashfaq Ahmed', 'Urdu adab', 'Good', null, 2, 'Gentle, wise talks from the much-loved TV programme, collected in print.', 'زاویہ'],
+  ['b29', 'Bang-e-Dara', 'Allama Muhammad Iqbal', 'Poetry', 'Good', null, 2, "Iqbal's first Urdu collection — the poems every Pakistani grew up with.", 'بانگِ درا'],
+  ['b30', 'Manto ke Afsanay', 'Saadat Hasan Manto', 'Urdu adab', 'Good', null, 1, 'Fearless short stories from the master of the Urdu afsana.', 'منٹو کے افسانے'],
+  ['b31', 'Nuskha-ha-e-Wafa', 'Faiz Ahmed Faiz', 'Poetry', 'Like new', null, 1, "Faiz's complete poetry — revolution, longing and hope.", 'نسخہ ہائے وفا'],
+  ['b32', 'Udas Naslain', 'Abdullah Hussain', 'Urdu adab', 'Well-loved', null, 1, 'The great Urdu epic of a generation, from colonial Punjab to Partition.', 'اداس نسلیں'],
+  ['b33', 'Bahao', 'Mustansar Hussain Tarar', 'Urdu adab', 'Good', null, 1, 'An ancient Indus civilisation slowly losing its river.', 'بہاؤ'],
 ];
 
 function seedCatalogue() {
   tx(() => {
-    for (const [bookId, title, author, category, condition, isbn, copies, description] of CATALOGUE) {
+    // Replace two Indian-edition ISBNs used by early versions (their covers never loaded).
+    run("UPDATE books SET isbn='9780143118527' WHERE id='b1' AND isbn='9780143426176'");
+    run("UPDATE books SET isbn='9780307388179' WHERE id='b3' AND isbn='9788184001754'");
+    for (const [bookId, title, author, category, condition, isbn, copies, description, urdu = null] of CATALOGUE) {
       if (one('SELECT id FROM books WHERE id=?', bookId)) {
-        run("UPDATE books SET isbn=?, total_copies=?, cover='', category=? WHERE id=? AND isbn IS NULL", isbn, copies, category, bookId);
+        if (isbn) run("UPDATE books SET isbn=?, total_copies=?, cover='', category=? WHERE id=? AND isbn IS NULL", isbn, copies, category, bookId);
+        if (urdu) run('UPDATE books SET alt_title=? WHERE id=? AND alt_title IS NULL', urdu, bookId);
       } else {
-        run("INSERT INTO books(id,tenant_id,title,author,category,condition,description,cover,isbn,total_copies,created_at) VALUES(?,'default',?,?,?,?,?,'',?,?,?)",
-          bookId, title, author, category, condition, description, isbn, copies, now());
+        run("INSERT INTO books(id,tenant_id,title,author,category,condition,description,cover,isbn,total_copies,alt_title,created_at) VALUES(?,'default',?,?,?,?,?,'',?,?,?,?)",
+          bookId, title, author, category, condition, description, isbn, copies, urdu, now());
       }
     }
   });

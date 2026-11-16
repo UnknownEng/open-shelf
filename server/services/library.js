@@ -10,7 +10,7 @@ const { notify, emit, audit } = require('../events');
 const { RESERVATION_HOLD_HOURS, RENEW_DAYS, MAX_RENEWALS } = require('../config');
 
 const DAY = 86_400_000;
-const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Karachi' });
 const coverFor = (b) => b.cover || (b.isbn ? `https://covers.openlibrary.org/b/isbn/${b.isbn}-L.jpg?default=false` : '');
 
 /** Run fn in a transaction and dispatch collected webhook events once it commits. */
@@ -56,7 +56,7 @@ function bookQuery(tenantId, viewerId, { q = '', category = '', includeArchived 
 
 function toBook(b) {
   return {
-    id: b.id, title: b.title, author: b.author, category: b.category, condition: b.condition,
+    id: b.id, title: b.title, altTitle: b.alt_title || null, author: b.author, category: b.category, condition: b.condition,
     description: b.description, isbn: b.isbn || null, cover: coverFor(b),
     totalCopies: b.total_copies, onLoan: b.on_loan,
     available: Math.max(0, b.total_copies - b.on_loan - b.held),
@@ -223,11 +223,11 @@ function addReview(user, bookId, rating, body) {
 function shelf(user) {
   const t = now();
   const loans = all(`SELECT l.id, l.status, l.borrowed_at AS borrowedAt, l.due_at AS dueAt, l.returned_at AS returnedAt, l.renewals,
-      b.id AS bookId, b.title, b.author, b.cover, b.isbn,
+      b.id AS bookId, b.title, b.alt_title AS altTitle, b.author, b.cover, b.isbn,
       (SELECT COUNT(*) FROM reservations r WHERE r.book_id=b.id AND r.status='waiting') AS queue
     FROM loans l JOIN books b ON b.id=l.book_id WHERE l.user_id=? ORDER BY l.borrowed_at DESC LIMIT 100`, user.id)
     .map((l) => ({ ...l, cover: coverFor(l), overdue: l.status === 'active' && l.dueAt < t, canRenew: l.status === 'active' && l.renewals < MAX_RENEWALS && l.queue === 0 }));
-  const reservations = all(`SELECT r.id, r.status, r.created_at AS createdAt, r.expires_at AS expiresAt, b.id AS bookId, b.title, b.author, b.cover, b.isbn
+  const reservations = all(`SELECT r.id, r.status, r.created_at AS createdAt, r.expires_at AS expiresAt, b.id AS bookId, b.title, b.alt_title AS altTitle, b.author, b.cover, b.isbn
     FROM reservations r JOIN books b ON b.id=r.book_id WHERE r.user_id=? AND r.status IN ('waiting','ready') ORDER BY r.created_at`, user.id)
     .map((r) => ({ ...r, cover: coverFor(r), position: r.status === 'waiting' ? queuePosition(r.id) : 0 }));
   return {

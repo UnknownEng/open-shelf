@@ -22,8 +22,8 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const FIRST = ['Ayesha', 'Hamza', 'Sara', 'Bilal', 'Noor', 'Mariam', 'Omar', 'Zara', 'Ali', 'Fatima', 'Usman', 'Hira', 'Daniyal', 'Amna', 'Saad', 'Iqra', 'Taha', 'Laiba', 'Faris', 'Mahnoor', 'Rayan', 'Eman', 'Shayan', 'Anaya'];
   const LAST = ['Khan', 'Ali', 'Ahmed', 'Raza', 'Fatima', 'Yusuf', 'Malik', 'Siddiqui', 'Qureshi', 'Sheikh', 'Butt', 'Chaudhry'];
-  const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Peshawar', 'Multan'];
-  const REVIEWS = ['Could not put it down.', 'Beautifully written.', 'A great pick for the commute.', 'Made me think for days.', 'Worth every credit.', 'Good, but slow in the middle.', ''];
+  const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Peshawar', 'Multan', 'Faisalabad', 'Hyderabad', 'Quetta', 'Sialkot'];
+  const REVIEWS = ['Could not put it down.', 'Kamaal ki kitaab!', 'Perfect for the metro bus ride.', 'Made me think for days.', 'Worth every credit.', 'Thora slow tha beech mein, but good.', 'Must read. Seriously.', ''];
 
   tx(() => {
     const mk = (name, email, pw, role, createdDaysAgo, credits = 3) => {
@@ -43,8 +43,9 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
       members.push(mk(`${first} ${last}`, `${first}.${last}${i}@example.com`.toLowerCase(), `demo-${id()}`, 'member', 2 + Math.floor(Math.random() * 34), 5));
     }
 
-    const books = all("SELECT id, total_copies FROM books WHERE tenant_id='default' AND archived=0");
-    const weights = books.map((b, i) => (i < 6 ? 4 : 1) + b.total_copies);
+    const books = all("SELECT id, total_copies, category FROM books WHERE tenant_id='default' AND archived=0 ORDER BY CAST(substr(id,2) AS INTEGER)");
+    const LOCAL = ['Pakistani fiction', 'Urdu adab', 'Poetry'];
+    const weights = books.map((b, i) => (LOCAL.includes(b.category) ? 5 : i < 6 ? 3 : 1) + b.total_copies);
     const weighted = () => {
       let r = Math.random() * weights.reduce((a, b) => a + b, 0);
       for (let i = 0; i < books.length; i++) { r -= weights[i]; if (r <= 0) return books[i]; }

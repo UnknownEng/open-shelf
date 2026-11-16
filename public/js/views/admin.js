@@ -10,10 +10,7 @@ const TABS = [
 let current = 'overview';
 
 export async function renderAdmin(app, { sub } = {}) {
-  if (!store.isStaff) {
-    app.innerHTML = `<section class="wrap"><div class="empty" style="padding-top:120px"><div class="big">🔒</div><h3>Staff only</h3><p>The console is available to library admins. ${store.me ? 'Ask an owner to grant you access.' : 'Please sign in with a staff account.'}</p><a class="btn btn-ghost" href="#/">Back home</a></div></section>`;
-    return;
-  }
+  if (!store.isStaff) return staffGate(app);
   if (sub && TABS.some((t) => t[0] === sub)) current = sub;
   const tabs = store.me.role === 'owner' ? [...TABS, ['tenants', '🏢', 'Tenants']] : TABS;
   app.innerHTML = `<section class="wrap console">
@@ -23,7 +20,7 @@ export async function renderAdmin(app, { sub } = {}) {
   const main = $('#cm', app);
   const show = async (k) => {
     current = k;
-    history.replaceState(null, '', `#/admin/${k}`);
+    history.replaceState(null, '', `/admin/${k}`);
     app.querySelectorAll('.side button').forEach((b) => b.classList.toggle('active', b.dataset.tab === k));
     main.innerHTML = '<div class="skeleton" style="height:60px"></div><div class="kpis">' + '<div class="skeleton" style="height:120px"></div>'.repeat(4) + '</div><div class="skeleton" style="height:320px"></div>';
     try { await PANES[k](main); } catch (err) { main.innerHTML = `<div class="empty"><div class="big">⚠︎</div><h3>Could not load</h3><p>${esc(err.message)}</p></div>`; }
@@ -32,6 +29,60 @@ export async function renderAdmin(app, { sub } = {}) {
   };
   $('.side', app).addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
   show(current);
+}
+
+/** Dedicated staff sign-in page shown at /admin when not signed in as staff. */
+function staffGate(app) {
+  const member = store.me && !store.isStaff;
+  app.innerHTML = `<section class="wrap" style="display:grid;place-items:center;min-height:calc(100vh - var(--top-h) - 40px)">
+    <div class="card" style="width:min(460px,100%);padding:clamp(26px,5vw,44px)" data-reveal>
+      <span class="eyebrow">🔒 Staff console</span>
+      <h1 style="font-size:clamp(34px,5vw,46px);margin:18px 0 8px">${member ? 'Staff <em>only.</em>' : 'Sign in to the <em class="grad-text">console.</em>'}</h1>
+      <p class="muted" style="margin-bottom:24px">${member ? `You're signed in as ${esc(store.me.email)}, which is a member account. Ask a library owner to give you admin access, or sign in with a staff account.` : 'For library staff and platform owners. Members can sign in on the main site.'}</p>
+      ${member ? `<div class="detail-actions"><button class="btn btn-primary" id="gateOut">Sign out & switch account</button><a class="btn btn-ghost" href="/">Back to the library</a></div>` : `
+      <form class="form" id="gateForm">
+        <label class="field">Staff email<input name="email" type="email" autocomplete="username" required placeholder="you@library.org"></label>
+        <label class="field">Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="form-error" id="gateErr"></div>
+        <button class="btn btn-primary lg" id="gateBtn">Sign in to console <span class="arrow">↗</span></button>
+        <a class="link" href="/" style="justify-self:center;font-size:14px">← Back to the library</a>
+      </form>`}
+    </div></section>`;
+  reveal(app);
+  $('#gateOut', app)?.addEventListener('click', async () => {
+    await api('/api/auth/logout', { method: 'POST', body: {} }).catch(() => {});
+    await refreshMe();
+  });
+  $('#gateForm', app)?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('#gateBtn', app);
+    btn.disabled = true;
+    try {
+      await api('/api/auth/login', { method: 'POST', body: Object.fromEntries(new FormData(e.currentTarget)) });
+      await refreshMe(); // main.js re-renders this view when the session changes
+      if (!store.isStaff) toast('That account does not have staff access.', 'error');
+    } catch (err) { $('#gateErr', app).textContent = err.message; } finally { btn.disabled = false; }
+  });
+}
+
+const exportBtn = (kind) => `<a class="btn btn-ghost sm" href="/api/admin/export/${kind}" download>⤓ Export CSV</a>`;
+
+async function memberDetail(id) {
+  const m = await api(`/api/admin/members/${encodeURIComponent(id)}`);
+  const s = m.shelf;
+  const REASONS = { welcome: 'Welcome credits', borrow: 'Borrowed', return: 'Returned', partner_grant: 'Partner grant', staff_adjustment: 'Staff adjustment' };
+  modal(`<h2>${esc(m.name)}</h2><p class="lead">${esc(m.email)} · ${esc(m.city)} · ${roleTag(m.role)} ${m.status === 'active' ? '<span class="tag tag-good">Active</span>' : '<span class="tag tag-bad">Suspended</span>'}</p>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:22px">
+      ${[['Credits', m.credits], ['On loan', s.active.length], ['Books read', s.stats.booksRead], ['Reviews', s.stats.reviews]].map(([l, n]) => `<div class="card kpi"><span>${l}</span><b>${n}</b></div>`).join('')}
+    </div>
+    <p class="muted" style="margin-bottom:18px">Joined ${fmtDate(m.createdAt)} · Last sign-in ${m.lastLoginAt ? relTime(m.lastLoginAt) : 'never'}${m.externalId ? ` · Partner ID <code>${esc(m.externalId)}</code>` : ''}</p>
+    <h3 style="font-size:20px;margin-bottom:10px">Loans</h3>
+    <div class="table-wrap" style="margin-bottom:22px"><table><thead><tr><th>Book</th><th>Borrowed</th><th>Due</th><th>Status</th></tr></thead><tbody>
+      ${[...s.active, ...s.history].slice(0, 30).map((l) => `<tr><td><b>${esc(l.title)}</b></td><td>${fmtDate(l.borrowedAt)}</td><td>${fmtDate(l.dueAt)}</td><td>${l.status === 'returned' ? '<span class="tag tag-mute">Returned</span>' : l.overdue ? '<span class="tag tag-bad">Overdue</span>' : '<span class="tag tag-good">On loan</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No loans yet.</td></tr>'}
+    </tbody></table></div>
+    ${s.reservations.length ? `<h3 style="font-size:20px;margin-bottom:10px">Waitlist</h3><p class="muted" style="margin-bottom:22px">${s.reservations.map((r) => `${esc(r.title)} (${r.status === 'ready' ? 'ready' : `#${r.position}`})`).join(' · ')}</p>` : ''}
+    <h3 style="font-size:20px;margin-bottom:10px">Credit history</h3>
+    <div class="ledger">${m.ledger.map((x) => `<div class="ledger-row"><span>${esc(REASONS[x.reason] || x.reason)}</span><small>${fmtDate(x.createdAt)}</small><b class="${x.delta < 0 ? 'neg' : 'pos'}">${x.delta > 0 ? '+' : ''}${x.delta}</b></div>`).join('') || '<p class="muted">No credit activity.</p>'}</div>`, { wide: true });
 }
 
 const head = (title, sub, actions = '') => `<div class="console-head"><div><h1>${title}</h1><p>${sub}</p></div><div class="detail-actions">${actions}</div></div>`;
@@ -90,7 +141,7 @@ const PANES = {
     const s = await api('/api/admin/stats');
     const loans = s.loansPerDay.map((d) => d.count), signups = s.signupsPerDay.map((d) => d.count);
     const maxGenre = Math.max(1, ...s.genres.map((g) => g.loans));
-    const series = [{ name: 'Loans', color: 'var(--accent)', data: s.loansPerDay }, { name: 'Returns', color: 'var(--accent-3)', data: s.returnsPerDay }];
+    const series = [{ name: 'Loans', color: 'var(--pink, var(--accent))', data: s.loansPerDay }, { name: 'Returns', color: 'var(--blue, var(--accent-3))', data: s.returnsPerDay }];
     el.innerHTML = `${head('Library <em>overview</em>', `Live numbers for ${esc(store.tenant?.name || 'your library')} · last 30 days`, '<a class="btn btn-ghost sm" href="/api/openapi.json" target="_blank" rel="noopener">API spec</a>')}
       <div class="kpis">
         ${[
@@ -100,7 +151,7 @@ const PANES = {
     ['Overdue', s.overdue, `${s.onTimeRate}% returned on time`, s.overdue ? 'var(--bad)' : 'var(--good)', ''],
   ].map(([l, v, sub, c, sp, suf = ''], i) => `<div class="card kpi" data-reveal style="--i:${i}"><span>${l}</span><b data-count="${v}" data-suffix="${suf}">0</b><small style="color:${c}">${sub}</small>${sp}</div>`).join('')}
       </div>
-      <div class="card panel" data-reveal><div class="panel-head"><h3>Circulation</h3><div class="legend"><span><i style="background:var(--accent)"></i>Loans</span><span><i style="background:var(--accent-3)"></i>Returns</span></div></div>${lineChart(series)}</div>
+      <div class="card panel" data-reveal><div class="panel-head"><h3>Circulation</h3><div class="legend"><span><i style="background:var(--pink, var(--accent))"></i>Loans</span><span><i style="background:var(--blue, var(--accent-3))"></i>Returns</span></div></div>${lineChart(series)}</div>
       <div class="two-col">
         <div class="card panel" data-reveal><div class="panel-head"><h3>Most borrowed</h3><span class="tag tag-mute">★ ${s.avgRating ?? '—'} avg rating</span></div>
           <div class="top-list">${s.topBooks.map((b, i) => `<div class="top-item"><span class="rank">${i + 1}</span>${cover(b)}<div><b>${esc(b.title)}</b><small>${esc(b.author)}</small></div><span class="tag tag-mute">${b.loans} loans</span></div>`).join('') || '<p class="muted">No loans yet.</p>'}</div></div>
@@ -113,7 +164,7 @@ const PANES = {
 
   async catalogue(el) {
     const data = await api('/api/admin/books');
-    el.innerHTML = `${head('Catalogue', `${data.total} titles · ${data.items.reduce((a, b) => a + b.totalCopies, 0)} physical copies`, '<button class="btn btn-primary sm" id="addBook">+ Add title</button>')}
+    el.innerHTML = `${head('Catalogue', `${data.total} titles · ${data.items.reduce((a, b) => a + b.totalCopies, 0)} physical copies`, `${exportBtn('books')}<button class="btn btn-primary sm" id="addBook">+ Add title</button>`)}
       <label class="search" style="max-width:420px"><input id="bq" placeholder="Filter titles…"></label>
       <div class="table-wrap" data-reveal><table><thead><tr><th>Title</th><th>Genre</th><th>Copies</th><th>Out</th><th>Waitlist</th><th>Rating</th><th>Status</th><th></th></tr></thead>
       <tbody>${data.items.map((b) => `<tr data-id="${esc(b.id)}" data-text="${esc(`${b.title} ${b.author} ${b.category}`.toLowerCase())}">
@@ -140,11 +191,11 @@ const PANES = {
   async members(el) {
     const list = await api('/api/admin/members');
     const isOwner = store.me.role === 'owner';
-    el.innerHTML = `${head('Members', `${list.length} readers`)}
+    el.innerHTML = `${head('Members', `${list.length} readers · click a name for full history`, exportBtn('members'))}
       <label class="search" style="max-width:420px"><input id="mq" placeholder="Search name or email…"></label>
       <div class="table-wrap" data-reveal><table><thead><tr><th>Member</th><th>Role</th><th>Credits</th><th>On loan</th><th>Total</th><th>Joined</th><th>Status</th><th></th></tr></thead>
       <tbody>${list.map((m) => `<tr data-id="${esc(m.id)}" data-text="${esc(`${m.name} ${m.email}`.toLowerCase())}">
-        <td><b>${esc(m.name)}</b><br><small class="muted">${esc(m.email)}</small></td><td>${roleTag(m.role)}</td><td><b>${m.credits}</b></td>
+        <td><button class="link" data-detail style="text-align:left"><b>${esc(m.name)}</b></button><br><small class="muted">${esc(m.email)}</small></td><td>${roleTag(m.role)}</td><td><b>${m.credits}</b></td>
         <td>${m.activeLoans}${m.overdue ? ` <span class="tag tag-bad">${m.overdue} late</span>` : ''}</td><td>${m.totalLoans}</td><td>${fmtDate(m.createdAt)}</td>
         <td>${m.status === 'active' ? '<span class="tag tag-good">Active</span>' : '<span class="tag tag-bad">Suspended</span>'}</td>
         <td><div class="row-actions">${m.id === store.me.id ? '<small class="muted">You</small>' : `<button class="mini" data-credits>Credits</button>
@@ -156,6 +207,7 @@ const PANES = {
     el.querySelector('tbody').addEventListener('click', async (e) => {
       const tr = e.target.closest('tr'); if (!tr) return;
       const m = list.find((x) => x.id === tr.dataset.id);
+      if (e.target.closest('[data-detail]')) { memberDetail(m.id).catch((err) => toast(err.message, 'error')); return; }
       if (e.target.closest('[data-status]')) {
         const suspend = m.status === 'active';
         if (suspend && !(await confirmDialog(`Suspend ${m.name}?`, 'They will be signed out and unable to borrow until reactivated.', { confirm: 'Suspend', danger: true }))) return;
@@ -176,7 +228,7 @@ const PANES = {
 
   async circulation(el, status = 'active') {
     const [loans, holds] = await Promise.all([api(`/api/admin/loans?status=${status}`), api('/api/admin/reservations')]);
-    el.innerHTML = `${head('Circulation', 'Check returned copies in, chase overdue loans and watch the waitlist.')}
+    el.innerHTML = `${head('Circulation', 'Check returned copies in, chase overdue loans and watch the waitlist.', exportBtn('loans'))}
       <div class="chips">${['active', 'overdue', 'returned', 'all'].map((s) => `<button class="chip ${s === status ? 'active' : ''}" data-s="${s}">${s[0].toUpperCase() + s.slice(1)}</button>`).join('')}</div>
       <div class="table-wrap" data-reveal><table><thead><tr><th>Book</th><th>Member</th><th>Borrowed</th><th>Due</th><th>Status</th><th></th></tr></thead>
       <tbody>${loans.length ? loans.map((l) => `<tr><td><b>${esc(l.title)}</b></td><td>${esc(l.member)}<br><small class="muted">${esc(l.email)}</small></td><td>${fmtDate(l.borrowedAt)}</td><td>${fmtDate(l.dueAt)}</td>
@@ -247,7 +299,7 @@ const PANES = {
 
   async settings(el) {
     const t = await api('/api/admin/settings');
-    const swatches = ['#f4b860', '#ff7a59', '#5fe0a5', '#8fa8ff', '#e05f8a', '#4fb3d9', '#c9a2ff', '#ffd166'];
+    const swatches = ['#c8ff3d', '#ff5fc8', '#4d5bff', '#ffd23f', '#3ddc97', '#ff7a1a', '#00c2ff', '#b18cff'];
     el.innerHTML = `${head('Library <em>settings</em>', 'Branding and lending rules. Changes apply instantly for every member — this is how partners white-label the platform.')}
       <div class="card panel" data-reveal><form class="form" id="sf" style="max-width:560px">
         <label class="field">Library name<input name="name" value="${esc(t.name)}" maxlength="60"></label>
@@ -272,7 +324,7 @@ const PANES = {
 
   async audit(el) {
     const rows = await api('/api/admin/audit');
-    el.innerHTML = `${head('Audit <em>log</em>', 'Every staff, member and API action that changes data.')}
+    el.innerHTML = `${head('Audit <em>log</em>', 'Every staff, member and API action that changes data.', exportBtn('audit'))}
       <div class="table-wrap" data-reveal><table><thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
       <tbody>${rows.map((a) => `<tr><td>${relTime(a.createdAt)}</td><td>${esc(a.actor)}</td><td><code>${esc(a.action)}</code></td><td><code class="muted">${esc((a.target || '').slice(0, 8))}</code></td><td><small class="muted">${esc(Object.entries(a.meta).map(([k, v]) => `${k}: ${v}`).join(' · '))}</small></td></tr>`).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:40px">No events yet.</td></tr>'}</tbody></table></div>`;
   },

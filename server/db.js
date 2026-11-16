@@ -76,6 +76,10 @@ const MIGRATIONS = [
    CREATE INDEX idx_ledger_user ON credit_ledger(user_id, created_at);
    CREATE INDEX idx_audit_tenant ON audit_log(tenant_id, created_at);
    CREATE INDEX idx_users_tenant ON users(tenant_id);`,
+
+  // 3 — optional second title (e.g. the Urdu title, printed on covers)
+  `ALTER TABLE books ADD COLUMN alt_title TEXT;
+   UPDATE tenants SET brand_color='#c8ff3d' WHERE id='default' AND brand_color='#f4b860';`,
 ];
 
 function migrate() {
