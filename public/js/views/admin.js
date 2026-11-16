@@ -313,6 +313,7 @@ const PANES = {
         <div class="field">Brand colour<div class="swatches">${swatches.map((c) => `<button type="button" data-c="${c}" class="${c === t.brand_color ? 'active' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}<input type="color" name="brandColor" value="${esc(t.brand_color)}" style="width:44px;height:36px;border-radius:10px"></div></div>
         <div class="field-row"><label class="field">Loan length (days)<input name="loanDays" type="number" min="1" max="120" value="${t.loan_days}"></label>
           <label class="field">Welcome credits<input name="welcomeCredits" type="number" min="0" max="50" value="${t.welcome_credits}"></label></div>
+        <label class="field">Pickup &amp; return instructions (shown to members after they borrow)<textarea name="pickupInfo" maxlength="400" rows="3">${esc(t.pickup_info || '')}</textarea></label>
         <div class="field">Plan <span class="tag tag-warn" style="justify-self:start">${esc(t.plan)}</span></div>
         <div class="form-error" id="sfe"></div><button class="btn btn-primary" style="justify-self:start">Save settings</button></form></div>`;
     const color = el.querySelector('[name=brandColor]');
@@ -323,7 +324,7 @@ const PANES = {
       const d = Object.fromEntries(new FormData(e.currentTarget));
       try {
         const nt = await api('/api/admin/settings', { method: 'PATCH', body: { ...d, loanDays: Number(d.loanDays), welcomeCredits: Number(d.welcomeCredits) } });
-        store.set({ tenant: { ...store.tenant, name: nt.name, brandColor: nt.brand_color, loanDays: nt.loan_days, welcomeCredits: nt.welcome_credits } });
+        store.set({ tenant: { ...store.tenant, name: nt.name, brandColor: nt.brand_color, loanDays: nt.loan_days, welcomeCredits: nt.welcome_credits, pickupInfo: nt.pickup_info } });
         toast('Settings saved.');
       } catch (err) { $('#sfe', el).textContent = err.message; }
     });

@@ -94,6 +94,9 @@ const MIGRATIONS = [
     }
     database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_external ON users(tenant_id, external_id) WHERE external_id IS NOT NULL;');
   },
+
+  // 5 — where members physically collect and return books (editable per library)
+  `ALTER TABLE tenants ADD COLUMN pickup_info TEXT NOT NULL DEFAULT 'Collect your book from the Open Shelf desk at your library within 2 days. When you are done, hand it back at the same desk or any Open Shelf drop box.';`,
 ];
 
 function migrate() {

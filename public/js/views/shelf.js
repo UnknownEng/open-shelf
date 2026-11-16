@@ -24,6 +24,7 @@ export async function renderShelf(app) {
   app.innerHTML = `
   <section class="wrap">
     <div class="page-head"><div><span class="eyebrow" data-reveal>Your reading shelf</span><h1 data-reveal style="--i:1;margin-top:16px">Hi ${esc(me.name.split(' ')[0])}, <em class="grad-text">happy reading.</em></h1></div></div>
+    ${shelf.active.length ? (() => { const next = [...shelf.active].sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0]; return `<div class="due-banner ${next.overdue ? 'late' : ''}" data-reveal>📅 ${next.overdue ? 'Overdue' : 'Next return'}: <b>${esc(next.title)}</b> by <b>${fmtDate(next.dueAt)}</b></div>`; })() : ''}
     <div class="shelf-top">
       <div class="card wallet" data-reveal>
         <span class="muted" style="font-weight:700;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase">Credit wallet</span>
@@ -45,7 +46,7 @@ export async function renderShelf(app) {
     return `<article class="card loan" data-reveal style="--i:${i}">
           <button data-open="${esc(l.bookId)}">${cover(l)}</button>
           <div><h4>${esc(l.title)}</h4><div class="by">${esc(l.author)}</div>
-            <div class="by" style="margin-top:6px">${l.overdue ? `<b style="color:var(--bad)">Overdue since ${fmtDate(l.dueAt)}</b>` : `Due ${fmtDate(l.dueAt)}`}${l.renewals ? ' · renewed' : ''}</div>
+            <div class="due-line ${l.overdue ? 'late' : ''}">${l.overdue ? `Overdue — was due ${fmtDate(l.dueAt)}` : `Return by ${fmtDate(l.dueAt)}`}${l.renewals ? ' · renewed' : ''}</div>
             <div class="loan-actions"><button class="btn btn-primary sm" data-return="${esc(l.id)}">Return</button>${l.canRenew ? `<button class="btn btn-ghost sm" data-renew="${esc(l.id)}">Renew +14d</button>` : ''}</div></div>
           <div class="ring-prog" style="--c:${color}"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="28"/><circle class="fg" cx="32" cy="32" r="28" data-pct="${pct}"/></svg><b>${Math.abs(d)}</b><small>${l.overdue ? 'days late' : 'days left'}</small></div>
         </article>`;

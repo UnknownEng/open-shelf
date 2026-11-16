@@ -28,10 +28,11 @@ export async function renderHome(app, { anchor } = {}) {
   app.innerHTML = `
   <section class="wrap hero">
     <div class="hero-copy">
-      <div data-reveal><span class="eyebrow"><span class="pulse-dot"></span>🇵🇰 ${stats.onLoanNow} books moving around Pakistan rn</span></div>
+      <div data-reveal><span class="eyebrow"><span class="pulse-dot"></span>🇵🇰 ${stats.onLoanNow} books moving around Pakistan right now</span></div>
       <h1 id="heroTitle">Read it. Pass it. <em>Repeat.</em></h1>
       <p class="hero-sub" data-reveal style="--i:3">Borrow real books with credits, keep them ${store.tenant?.loanDays || 21} days, pass them on. <b>No fines. No fees.</b> Just a shared shelf from Lahore to Karachi to Isloo.</p>
       <p class="roman" data-reveal style="--i:3">kitaab parho · aagay barhao · repeat karo</p>
+      <p class="plain-explain" data-reveal style="--i:3"><b>Free to join.</b> Borrow a real book with 1 credit, return it, get the credit back. <span class="urdu" lang="ur">مفت کتابیں ادھار لیں، پڑھیں، واپس کریں</span></p>
       <div class="hero-ctas" data-reveal style="--i:4">
         <a class="btn btn-primary lg magnetic" href="#/browse"><span>Find your next read</span> <span class="arrow">↗</span></a>
         <a class="btn btn-ghost lg" href="#/#platforms">For partners</a>

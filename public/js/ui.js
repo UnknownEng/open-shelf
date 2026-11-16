@@ -84,6 +84,13 @@ export function toast(msg, type = 'ok') {
 }
 
 // ---------------------------------------------------------------- modals
+let skipPop = 0;
+addEventListener('popstate', () => {
+  if (skipPop) { skipPop--; return; }
+  const boxes = document.querySelectorAll('#modalRoot .modal');
+  boxes[boxes.length - 1]?._closeFromBack?.();
+});
+
 export function modal(html, { wide = false, onClose } = {}) {
   const root = $('#modalRoot');
   const backdrop = document.createElement('div');
@@ -115,7 +122,9 @@ export function modal(html, { wide = false, onClose } = {}) {
       prevFocus?.focus?.();
     }, 350);
     onClose?.();
+    if (!poppedByBack && history.state?.osModal) { skipPop++; history.back(); }
   };
+  let poppedByBack = false;
   const isTop = () => root.querySelector('.modal:last-of-type') === box;
   const onKey = (e) => {
     if (!isTop()) return; // stacked modals: only the topmost one reacts
@@ -132,6 +141,18 @@ export function modal(html, { wide = false, onClose } = {}) {
   document.addEventListener('keydown', onKey);
   backdrop.addEventListener('click', close);
   box.querySelector('.modal-close').addEventListener('click', close);
+  box.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-close-modal]');
+    if (!link) return;
+    e.preventDefault();
+    poppedByBack = true; // don't history.back(): we replace the sheet's history entry with the destination instead
+    close();
+    const href = link.getAttribute('href');
+    if (href) location.replace(href);
+  });
+  // Phone Back button closes the sheet instead of navigating the page behind it.
+  history.pushState({ osModal: true }, '');
+  box._closeFromBack = () => { poppedByBack = true; close(); };
   setTimeout(() => (box.querySelector('input, textarea, select') || box).focus({ preventScroll: true }), 60);
   return { el: box, close };
 }

@@ -323,3 +323,28 @@ td .mini.danger:hover { background: var(--bad); color: #fff; border-color: var(-
 
 /* Decorations (slanted tickers, orbit rings, flying pages) may bleed past the edge but must never widen the page. */
 html, #app { overflow-x: clip; }
+
+/* --- usability study fixes --- */
+.plain-explain { font-size: 16px; color: var(--text-2); max-width: 520px; display: grid; gap: 4px; }
+.plain-explain .urdu { font-size: 18px; line-height: 2.1; }
+.due-banner { margin: -10px 0 26px; padding: 16px 20px; border: var(--bw) solid var(--edge); border-radius: 16px; background: var(--sun); color: #121212; box-shadow: 4px 4px 0 var(--shade); font-size: 17px; }
+.due-banner.late { background: #ff8aa0; }
+.due-line { margin-top: 8px; display: inline-block; padding: 4px 10px; border: 2px solid var(--edge); border-radius: 10px; background: var(--sun); color: #121212; font-weight: 800; font-size: 14px; }
+.due-line.late { background: #ff8aa0; }
+@media (max-width: 860px) {
+  #signInBtn { display: inline-flex !important; }
+  #signInBtn.hidden { display: none !important; }
+  .top-actions .btn.sm { --h: 36px; padding: 0 12px; }
+  .hero .scene { order: 1; height: 300px; }
+  .page-head { padding: 22px 0 6px; }
+  .page-head p { display: none; }
+  .page-head h1 { font-size: 38px; }
+  .search kbd { display: none; }
+  .filters { top: var(--top-h); padding: 8px 0; gap: 8px; }
+  .search, .select { height: 46px; }
+  .tabbar a { font-size: 12px; }
+  .loan { grid-template-columns: 64px 1fr; }
+  .loan h4 { font-size: 16px; }
+}
+@media (max-width: 480px) { #joinBtn { padding: 0 10px; } .brand-name { font-size: 16px; } }
+@media (min-width: 861px) { .plain-explain { display: none; } }

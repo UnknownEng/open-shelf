@@ -216,7 +216,8 @@ module.exports = function adminRoutes(r) {
     const color = v.color(b.brandColor, t.brand_color);
     const loanDays = v.int(b.loanDays, 'Loan length', { min: 1, max: 120, fallback: t.loan_days });
     const welcome = v.int(b.welcomeCredits, 'Welcome credits', { min: 0, max: 50, fallback: t.welcome_credits });
-    run('UPDATE tenants SET name=?, brand_color=?, loan_days=?, welcome_credits=? WHERE id=?', name, color, loanDays, welcome, t.id);
+    const pickup = b.pickupInfo === undefined ? t.pickup_info : v.str(b.pickupInfo, 'Pickup & return instructions', { min: 10, max: 400 });
+    run('UPDATE tenants SET name=?, brand_color=?, loan_days=?, welcome_credits=?, pickup_info=? WHERE id=?', name, color, loanDays, welcome, pickup, t.id);
     audit(t.id, ctx.user, 'tenant.settings_updated', t.id, { name, color, loanDays, welcome });
     return one('SELECT * FROM tenants WHERE id=?', t.id);
   });

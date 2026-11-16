@@ -15,7 +15,7 @@ module.exports = function publicRoutes(r) {
 
   r.get('/api/tenant', { summary: 'Public branding for the current library', tag: 'System' }, (ctx) => {
     const t = ctx.tenant;
-    return { id: t.id, slug: t.slug, name: t.name, brandColor: t.brand_color, loanDays: t.loan_days, welcomeCredits: t.welcome_credits };
+    return { id: t.id, slug: t.slug, name: t.name, brandColor: t.brand_color, loanDays: t.loan_days, welcomeCredits: t.welcome_credits, pickupInfo: t.pickup_info };
   });
 
   r.get('/api/stats/public', { summary: 'Headline library numbers for marketing pages', tag: 'System' }, (ctx) => {

@@ -136,6 +136,19 @@ async function toast(page, re) {
 }
 const apiJson = async (page, url) => (await page.request.get(url)).json();
 const modalOpen = (page) => page.locator('.modal.open').last();
+// After borrowing, a "Go get your book" sheet explains pickup; close it to continue.
+async function dismissNextStep(page) {
+  const ns = page.locator('.modal.open', { hasText: 'Go get your' });
+  await ns.waitFor({ timeout: T });
+  await ns.locator('.modal-close').click();
+  await ns.waitFor({ state: 'detached', timeout: T });
+}
+// Returning a book / leaving a waitlist now asks for confirmation.
+async function confirmYes(page) {
+  const yes = page.locator('.modal.open [data-yes]').last();
+  await yes.waitFor({ timeout: T });
+  await yes.click();
+}
 async function credits(page) { return Number(await page.locator('#creditCount').innerText()); }
 
 async function openBookFromBrowse(page, id) {
@@ -327,22 +340,19 @@ qa('07 register: validation errors, weak password, success shows credits in head
   const m = modalOpen(page);
   const err = m.locator('#authError');
   const submit = () => m.locator('#authSubmit').click();
+  // All missing fields are listed in one message (usability study: one-at-a-time errors cost users 3 rounds).
   await submit();
-  await waitText(err, /Name is required/);
+  await waitText(err, /your full name, your city, a valid email address and a password of at least 10 characters/);
   await m.locator('[name=name]').fill(u.name);
-  await submit();
-  await waitText(err, /Email is required/);
   await m.locator('[name=email]').fill('not-an-email');
   await submit();
-  await waitText(err, /Enter a valid email address/);
+  await waitText(err, /Please add your city, a valid email address and a password/);
   await m.locator('[name=email]').fill(u.email);
-  await submit();
-  await waitText(err, /City is required/);
   await m.locator('[name=city]').fill(u.city);
   await m.locator('[name=password]').fill('short');
   assert.equal(await m.locator('.pw-meter i').evaluate((e) => e.style.getPropertyValue('--p')), '0%', 'weak meter');
   await submit();
-  await waitText(err, /Password must be at least 10 characters/);
+  await waitText(err, /Please add a password of at least 10 characters/);
   await m.locator('[name=password]').fill(u.password);
   assert.equal(await m.locator('.pw-meter i').evaluate((e) => e.style.getPropertyValue('--p')), '100%', 'strong meter');
   await submit();
@@ -405,7 +415,8 @@ qa('09 book modal: copies bar, borrow (-1 credit), review stars, renew, return (
   assert.equal(await credits(page), 3);
 
   await m.locator('[data-act=borrow]').click();
-  await toast(page, /Borrowed! It's on your shelf/);
+  await toast(page, /Borrowed! Due back/);
+  await dismissNextStep(page);
   await poll(() => credits(page), (c) => c === 2, 'header credits 3 -> 2');
   await waitText(m.locator('.copies span').first(), /^2 of 3 available$/);
   assert.equal(await m.locator('.copies-bar i.out').count(), 1);
@@ -428,10 +439,13 @@ qa('09 book modal: copies bar, borrow (-1 credit), review stars, renew, return (
   await m.locator('[data-act=renew]').click();
   await toast(page, /Renewed — new due date/);
   await waitText(m.locator('.detail-actions'), /due in 35 days/);
+  await page.waitForTimeout(1000); // deliberate second tap (fast double-taps are ignored by design)
   await m.locator('[data-act=renew]').click();
   await toast(page, /already been renewed/);
 
+  await page.waitForTimeout(1000);
   await m.locator('[data-act=return]').click();
+  await confirmYes(page);
   await toast(page, /Returned — your credit is back/);
   await poll(() => credits(page), (c) => c === 3, 'header credits 2 -> 3');
   await m.locator('[data-act=borrow]').waitFor();
@@ -449,7 +463,9 @@ qa('10 book modal: join waitlist when 0 available, then leave it', async () => {
   await toast(page, /You're #1 on the waitlist/);
   await m.locator('[data-act=cancel]').waitFor();
   await waitText(m.locator('.detail-actions'), /You're #1 in line/);
+  await page.waitForTimeout(1000); // a double-tap must NOT leave the waitlist; a deliberate tap may
   await m.locator('[data-act=cancel]').click();
+  await confirmYes(page);
   await toast(page, /Removed from the waitlist/);
   await m.locator('[data-act=reserve]').waitFor();
   assert.equal(await credits(page), 3, 'waitlist does not cost credits');
@@ -482,6 +498,7 @@ qa('11 shelf: due rings, renew, return, history, credit ledger, ready hold -> Bo
   assert.equal(await onShelf.locator('.loan', { hasText: 'QA Lending Primer' }).locator('[data-renew]').count(), 0, 'no second renew button');
 
   await onShelf.locator('.loan', { hasText: 'QA Second Copy' }).locator('[data-return]').click();
+  await confirmYes(page);
   await toast(page, /Returned/);
   await poll(() => credits(page), (c) => c === 2, 'credits 1 -> 2 after return');
   await poll(() => onShelf.locator('.loan').count(), (n) => n === 1, 'one loan left');

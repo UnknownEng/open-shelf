@@ -1,6 +1,6 @@
 // Book detail modal: 3D cover, availability, lending actions and reviews.
 import { api, store } from '../api.js';
-import { modal, esc, book3d, stars, fmtDate, relTime, daysLeft, toast, $ } from '../ui.js';
+import { modal, esc, book3d, stars, fmtDate, relTime, daysLeft, toast, confirmDialog, $ } from '../ui.js';
 import * as act from '../actions.js';
 
 export async function openBook(bookId) {
@@ -10,6 +10,7 @@ export async function openBook(bookId) {
     { wide: true, onClose: () => window.removeEventListener('library:changed', onChange) });
   window.addEventListener('library:changed', onChange);
 
+  let lastActionAt = 0;
   async function load() {
     let b;
     try { b = await api(`/api/books/${encodeURIComponent(bookId)}`); } catch (err) { toast(err.message, 'error'); m.close(); return; }
@@ -63,6 +64,8 @@ export async function openBook(bookId) {
 
     const coverEl = m.el.querySelector('.book3d .front .cover');
     m.el.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
+      if (Date.now() - lastActionAt < 900) return; // a fast double-tap must not hit the button that just appeared
+      if (btn.dataset.act === 'cancel' && !(await confirmDialog('Leave the waitlist?', 'You will lose your place in line.', { confirm: 'Leave waitlist', danger: true }))) return;
       btn.disabled = true;
       const a = btn.dataset.act;
       if (a === 'borrow') await act.borrow(b.id, coverEl);
@@ -71,6 +74,7 @@ export async function openBook(bookId) {
       if (a === 'return') await act.returnLoan(btn.dataset.id, btn);
       if (a === 'renew') await act.renew(btn.dataset.id);
       btn.disabled = false;
+      lastActionAt = Date.now();
     }));
     $('#reviewForm', m.el)?.addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -23,6 +23,24 @@ function withEvents(tenantId, fn) {
 
 // ---------------------------------------------------------------- catalogue
 
+// Search is forgiving: case, hyphens, apostrophes and punctuation are ignored, Urdu
+// diacritics (zer/zabar/pesh…) are stripped, the Urdu title is searched too, and common
+// Roman-Urdu spellings are treated as the same word.
+const URDU_MARKS = /[\u064B-\u065F\u0670\u06EA-\u06ED]/g;
+const ALIASES = { pir: 'peer', peere: 'peer', kaamil: 'kamil', baang: 'bang', iqbaal: 'iqbal', faez: 'faiz', faiz: 'faiz', manto: 'manto', mantu: 'manto', zaviya: 'zavia', zaawiya: 'zavia', zavia: 'zavia', '1984': 'eighty', mans: 'man', udaas: 'udas', naslen: 'naslain', raja: 'raja', gidh: 'gidh', ghidh: 'gidh' };
+function searchTokens(q) {
+  return q.toLowerCase().normalize('NFKC').replace(URDU_MARKS, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ')
+    .filter((t) => t.length > 1 || /\p{N}/u.test(t)).slice(0, 8).map((t) => ALIASES[t] || t);
+}
+// Same normalisation, done in SQL on the book side.
+const PUNCT = ["-", "'", "’", ",", ".", ":", ";", "!", "?", "(", ")", "&", "/", "\""];
+const HAY = (() => {
+  let expr = "lower(b.title||' '||b.author||' '||b.category||' '||COALESCE(b.isbn,'')||' '||COALESCE(b.alt_title,''))";
+  for (const ch of PUNCT) expr = `replace(${expr},'${ch.replace(/'/g, "''")}',' ')`;
+  for (let c = 0x064B; c <= 0x0652; c++) expr = `replace(${expr},char(${c}),'')`;
+  return `replace(${expr},char(${0x0670}),'')`;
+})();
+
 const SORTS = {
   new: 'created_at DESC, title',
   title: 'title COLLATE NOCASE',
@@ -37,7 +55,11 @@ function bookQuery(tenantId, viewerId, { q = '', category = '', includeArchived 
   let where = 'b.tenant_id=?';
   if (!includeArchived) where += ' AND b.archived=0';
   if (bookId) { where += ' AND b.id=?'; params.push(bookId); }
-  if (q) { where += " AND lower(b.title||' '||b.author||' '||b.category||' '||COALESCE(b.isbn,'')) LIKE ?"; params.push(`%${q.toLowerCase()}%`); }
+  for (const t of q ? searchTokens(q) : []) {
+    // "nineteen eighty-four" style titles also match the year, and the Urdu izafat "e" is ignored.
+    where += ` AND (${HAY} LIKE ? OR replace(${HAY},' ','') LIKE ?)`;
+    params.push(`%${t}%`, `%${t}%`);
+  }
   if (category) { where += ' AND b.category=?'; params.push(category); }
   const sql = `SELECT b.*,
       (SELECT COUNT(*) FROM loans l WHERE l.book_id=b.id AND l.status='active') AS on_loan,

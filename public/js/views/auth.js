@@ -26,7 +26,7 @@ export function openAuth(mode = 'login') {
       <form class="form" id="authForm" novalidate>
         <div class="field-row reg">
           <label class="field">Full name<input name="name" autocomplete="name" maxlength="70" placeholder="Your name"></label>
-          <label class="field">City<input name="city" autocomplete="address-level2" maxlength="70" placeholder="Lahore"></label>
+          <label class="field">City<input name="city" autocomplete="address-level2" maxlength="70" placeholder="e.g. Lahore, Karachi"></label>
         </div>
         <label class="field">Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
         <label class="field">Password<input name="password" type="password" required minlength="10" placeholder="At least 10 characters"></label>
@@ -61,6 +61,15 @@ export function openAuth(mode = 'login') {
     $('#authForm', el).addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.currentTarget));
+      const problems = [];
+      if (mode === 'register' && String(data.name || '').trim().length < 2) problems.push('your full name');
+      if (mode === 'register' && String(data.city || '').trim().length < 2) problems.push('your city');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email || '').trim())) problems.push('a valid email address');
+      if (mode === 'register' ? String(data.password || '').length < 10 : !data.password) problems.push(mode === 'register' ? 'a password of at least 10 characters' : 'your password');
+      if (problems.length) {
+        $('#authError', el).textContent = `Please add ${problems.join(', ').replace(/, ([^,]*)$/, ' and $1')}.`;
+        return;
+      }
       const btn = $('#authSubmit', el);
       btn.disabled = true;
       try {
