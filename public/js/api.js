@@ -13,6 +13,11 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
     const err = new Error(data?.error || `Request failed (${res.status})`);
     err.status = res.status;
     err.code = data?.code;
+    // Session expired or signed out elsewhere: reflect it everywhere and offer sign-in.
+    if (err.code === 'auth_required' && store.me) {
+      store.set({ me: null, unread: 0 });
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     throw err;
   }
   return data;

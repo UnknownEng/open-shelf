@@ -102,7 +102,7 @@ async function handleApi(req, res, url) {
       ctx.user = user && user.status === 'active' ? user : null;
       ctx.tenant = ctx.user ? one('SELECT * FROM tenants WHERE id=?', ctx.user.tenant_id) : resolveTenant(req);
       if (req.method !== 'GET') checkOrigin(req);
-      if (['user', 'admin', 'owner'].includes(route.auth) && !ctx.user) throw new HttpError(401, 'Please sign in to continue.');
+      if (['user', 'admin', 'owner'].includes(route.auth) && !ctx.user) throw new HttpError(401, 'Please sign in to continue.', 'auth_required');
       if (route.auth === 'admin' && !['admin', 'owner'].includes(ctx.user.role)) throw new HttpError(403, 'Library staff access is required.');
       if (route.auth === 'owner' && ctx.user.role !== 'owner') throw new HttpError(403, 'Platform owner access is required.');
     }

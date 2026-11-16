@@ -101,6 +101,16 @@ export function initPointerFx() {
   });
 }
 
+// ---------------------------------------------------------------- pause off-screen animation
+let pauseIo;
+/** Stops CSS animations inside zones that are scrolled out of view (saves CPU/battery). */
+export function pauseOffscreen(root = document) {
+  pauseIo ||= new IntersectionObserver((entries) => {
+    for (const en of entries) en.target.classList.toggle('offscreen', !en.isIntersecting);
+  }, { rootMargin: '120px 0px' });
+  root.querySelectorAll('.hero, .ticker, .marquee, .bento, .steps, .platforms, .cta-band, .brand-mark').forEach((el) => pauseIo.observe(el));
+}
+
 // ---------------------------------------------------------------- scroll reveal + count-up
 let io;
 export function reveal(root = document) {

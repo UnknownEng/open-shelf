@@ -93,7 +93,12 @@ export function modal(html, { wide = false, onClose } = {}) {
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');
   box.innerHTML = `<button class="modal-close" aria-label="Close">×</button>${html}`;
+  box.tabIndex = -1;
+  const labelId = `m${Math.random().toString(36).slice(2, 8)}`;
   root.append(backdrop, box);
+  const labelSync = () => { const h = box.querySelector('h2'); if (h) { h.id ||= labelId; box.setAttribute('aria-labelledby', h.id); } };
+  labelSync();
+  new MutationObserver(labelSync).observe(box, { childList: true, subtree: true });
   const prevFocus = document.activeElement;
   requestAnimationFrame(() => { backdrop.classList.add('open'); box.classList.add('open'); });
   document.body.style.overflow = 'hidden';
@@ -111,11 +116,23 @@ export function modal(html, { wide = false, onClose } = {}) {
     }, 350);
     onClose?.();
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const isTop = () => root.querySelector('.modal:last-of-type') === box;
+  const onKey = (e) => {
+    if (!isTop()) return; // stacked modals: only the topmost one reacts
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); return; }
+    if (e.key === 'Tab') { // keep keyboard focus inside the dialog
+      const f = [...box.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
   document.addEventListener('keydown', onKey);
   backdrop.addEventListener('click', close);
   box.querySelector('.modal-close').addEventListener('click', close);
-  setTimeout(() => box.querySelector('input, textarea, select')?.focus(), 120);
+  setTimeout(() => (box.querySelector('input, textarea, select') || box).focus({ preventScroll: true }), 60);
   return { el: box, close };
 }
 

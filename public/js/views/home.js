@@ -1,7 +1,7 @@
 // Landing page: 3D flying-book hero, marquee, how-it-works, features, B2B platform pitch.
 import { api, store } from '../api.js';
 import { esc, cover, book3d, $ } from '../ui.js';
-import { reveal, splitWords, typewriter } from '../fx.js';
+import { reveal, splitWords, typewriter, pauseOffscreen } from '../fx.js';
 import { openBook } from './book.js';
 import { openAuth } from './auth.js';
 
@@ -59,8 +59,8 @@ export async function renderHome(app, { anchor } = {}) {
 
   <div class="ticker"><div class="ticker-track">${Array.from({ length: 2 }, () => ['3 free credits', 'no fines', 'Lahore', 'Karachi', 'Islamabad', 'Peshawar', 'Multan', 'Urdu adab', 'Faiz', 'Iqbal', 'Manto', 'Mohsin Hamid'].map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>
   <div class="ticker alt"><div class="ticker-track">${Array.from({ length: 2 }, () => ['borrow', 'read', 'return', 'repeat', 'kitaab parho', 'aagay barhao', 'shelf goals', 'main character energy'].map((t) => `<span>${t}</span>`).join('')).join('')}</div></div>
-  <div class="marquee" data-reveal><div class="marquee-track">${[...rowA, ...rowA].map((b) => `<button data-book="${esc(b.id)}" aria-label="${esc(b.title)}">${cover(b)}</button>`).join('')}</div></div>
-  <div class="marquee reverse" style="border-top:0"><div class="marquee-track">${[...rowB, ...rowB].map((b) => `<button data-book="${esc(b.id)}" aria-label="${esc(b.title)}">${cover(b)}</button>`).join('')}</div></div>
+  <div class="marquee" data-reveal><div class="marquee-track">${[...rowA, ...rowA].map((b, i) => `<button data-book="${esc(b.id)}" aria-label="${esc(b.title)}"${i >= rowA.length ? ' tabindex="-1" aria-hidden="true"' : ''}>${cover(b)}</button>`).join('')}</div></div>
+  <div class="marquee reverse" style="border-top:0"><div class="marquee-track" aria-hidden="true">${[...rowB, ...rowB].map((b) => `<button data-book="${esc(b.id)}" tabindex="-1">${cover(b)}</button>`).join('')}</div></div>
 
   <section class="section wrap" id="how">
     <div class="section-head"><span class="eyebrow" data-reveal>How it works</span><h2 data-reveal style="--i:1">Three steps. <em>That's it.</em></h2></div>
@@ -141,6 +141,7 @@ export async function renderHome(app, { anchor } = {}) {
 
   splitWords($('#heroTitle', app));
   reveal(app);
+  pauseOffscreen(app);
   app.querySelectorAll('[data-book]').forEach((el) => el.addEventListener('click', () => openBook(el.dataset.book)));
   $('#ctaJoin', app)?.addEventListener('click', () => openAuth('register'));
 

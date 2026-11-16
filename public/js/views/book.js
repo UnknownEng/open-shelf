@@ -4,12 +4,11 @@ import { modal, esc, book3d, stars, fmtDate, relTime, daysLeft, toast, $ } from 
 import * as act from '../actions.js';
 
 export async function openBook(bookId) {
-  const m = modal('<div class="detail"><div class="skeleton" style="height:320px"></div><div class="skeleton" style="height:320px"></div></div>', { wide: true });
   const onChange = () => load();
+  // onClose runs for ×, Escape and backdrop clicks alike, so the listener never leaks.
+  const m = modal('<div class="detail"><div class="skeleton" style="height:320px"></div><div class="skeleton" style="height:320px"></div></div>',
+    { wide: true, onClose: () => window.removeEventListener('library:changed', onChange) });
   window.addEventListener('library:changed', onChange);
-  const origClose = m.close;
-  m.close = () => { window.removeEventListener('library:changed', onChange); origClose(); };
-  m.el.querySelector('.modal-close').onclick = m.close;
 
   async function load() {
     let b;

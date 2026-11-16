@@ -308,3 +308,15 @@ td .mini.danger:hover { background: var(--bad); color: #fff; border-color: var(-
 .card-badges .tag.tag-info { background: #b7bdff; }
 .filter-row { padding-right: 6px; }
 .nav a, .brand { white-space: nowrap; }
+
+/* --- frontend review fixes --- */
+.filters { grid-template-columns: minmax(0, 1fr); }
+.filter-row, .chips { min-width: 0; }
+.offscreen, .offscreen * { animation-play-state: paused !important; }
+.chip small { opacity: 1; }
+.chip.active small { color: #fff; }
+:root[data-theme="light"] { --good: #04703c; --warn: #9a5c00; --bad: #c4183b; }
+.stars { color: #b55f00; }
+:root[data-theme="dark"] .stars { color: #ffb02e; }
+.kpi svg { width: 40%; height: 34px; opacity: .45; }
+@media (max-width: 860px) { .search { min-width: 0; flex-basis: 100%; } }

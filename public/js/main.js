@@ -5,6 +5,10 @@ import { initSky, initPointerFx } from './fx.js';
 import { openAuth } from './views/auth.js';
 import { openBook } from './views/book.js';
 
+// Web fonts load without blocking first paint (fallback fonts show until they arrive).
+const webfonts = document.getElementById('webfonts');
+if (webfonts) webfonts.media = 'all';
+
 const app = $('#app');
 const ROUTES = {
   '': () => import('./views/home.js').then((m) => m.renderHome),
@@ -83,6 +87,8 @@ function renderHeader() {
 
 function closePopovers(except) {
   $$('.popover.open').forEach((p) => { if (p !== except) p.classList.remove('open'); });
+  $('#bellBtn').setAttribute('aria-expanded', String($('#notifPanel').classList.contains('open')));
+  $('#avatarBtn').setAttribute('aria-expanded', String($('#accountMenu').classList.contains('open')));
 }
 
 async function toggleNotifications() {
@@ -90,6 +96,7 @@ async function toggleNotifications() {
   const open = !panel.classList.contains('open');
   closePopovers(panel);
   panel.classList.toggle('open', open);
+  closePopovers(panel);
   if (!open) return;
   panel.innerHTML = '<div class="skeleton" style="height:60px;margin:8px"></div>';
   const list = await api('/api/notifications').catch(() => []);
@@ -118,6 +125,7 @@ function toggleAccountMenu() {
     <button class="menu-item" id="menuTheme">◐ Switch light / dark</button>
     <button class="menu-item" id="signOut">↪ Sign out</button>`;
   menu.classList.add('open');
+  closePopovers(menu);
   $('#menuTheme', menu).onclick = () => $('#themeToggle').click();
   $('#signOut', menu).onclick = async () => {
     await api('/api/auth/logout', { method: 'POST', body: {} }).catch(() => {});
@@ -162,13 +170,14 @@ async function boot() {
       if (!location.hash.startsWith('#/browse')) location.hash = '#/browse';
       setTimeout(() => $('#q')?.focus(), 250);
     }
-    if (e.key === 'Enter' && e.target.classList?.contains('book-card')) openBook(e.target.dataset.id);
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('book-card')) { e.preventDefault(); openBook(e.target.dataset.id); }
+    if (e.key === 'Escape' && $('.popover.open')) { closePopovers(); }
   });
 
   store.subscribe(renderHeader);
-  const tenant = await api('/api/tenant').catch(() => null);
+  const [tenant] = await Promise.all([api('/api/tenant').catch(() => null), refreshMe()]);
   store.set({ tenant });
-  await refreshMe();
+  addEventListener('auth:expired', () => { toast('Your session ended. Please sign in again.', 'error'); openAuth('login'); });
   let wasSignedIn = !!store.me;
   store.subscribe(() => {
     // Re-render the current view when auth state flips (sign in / out).

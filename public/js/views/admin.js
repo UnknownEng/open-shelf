@@ -11,8 +11,10 @@ let current = 'overview';
 
 export async function renderAdmin(app, { sub } = {}) {
   if (!store.isStaff) return staffGate(app);
-  if (sub && TABS.some((t) => t[0] === sub)) current = sub;
   const tabs = store.me.role === 'owner' ? [...TABS, ['tenants', '🏢', 'Tenants']] : TABS;
+  if (sub && tabs.some((t) => t[0] === sub)) current = sub;
+  if (!tabs.some((t) => t[0] === current)) current = 'overview';
+  let loadToken = 0;
   app.innerHTML = `<section class="wrap console">
     <aside class="side"><div class="side-title">${esc(store.tenant?.name || 'Console')}</div>
       ${tabs.map(([k, i, l]) => `<button data-tab="${k}" class="${k === current ? 'active' : ''}"><i>${i}</i>${l}</button>`).join('')}</aside>
@@ -23,7 +25,12 @@ export async function renderAdmin(app, { sub } = {}) {
     history.replaceState(null, '', `/admin/${k}`);
     app.querySelectorAll('.side button').forEach((b) => b.classList.toggle('active', b.dataset.tab === k));
     main.innerHTML = '<div class="skeleton" style="height:60px"></div><div class="kpis">' + '<div class="skeleton" style="height:120px"></div>'.repeat(4) + '</div><div class="skeleton" style="height:320px"></div>';
-    try { await PANES[k](main); } catch (err) { main.innerHTML = `<div class="empty"><div class="big">⚠︎</div><h3>Could not load</h3><p>${esc(err.message)}</p></div>`; }
+    const token = ++loadToken;
+    const pane = document.createElement('div');
+    pane.style.cssText = 'display:grid;gap:24px;min-width:0';
+    try { await PANES[k](pane); } catch (err) { pane.innerHTML = `<div class="empty"><div class="big">⚠︎</div><h3>Could not load</h3><p>${esc(err.message)}</p></div>`; }
+    if (token !== loadToken) return; // a newer tab was clicked meanwhile
+    main.replaceChildren(pane);
     main.classList.remove('view-enter'); void main.offsetWidth; main.classList.add('view-enter');
     reveal(main);
   };
@@ -72,7 +79,7 @@ async function memberDetail(id) {
   const s = m.shelf;
   const REASONS = { welcome: 'Welcome credits', borrow: 'Borrowed', return: 'Returned', partner_grant: 'Partner grant', staff_adjustment: 'Staff adjustment' };
   modal(`<h2>${esc(m.name)}</h2><p class="lead">${esc(m.email)} · ${esc(m.city)} · ${roleTag(m.role)} ${m.status === 'active' ? '<span class="tag tag-good">Active</span>' : '<span class="tag tag-bad">Suspended</span>'}</p>
-    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:22px">
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:22px">
       ${[['Credits', m.credits], ['On loan', s.active.length], ['Books read', s.stats.booksRead], ['Reviews', s.stats.reviews]].map(([l, n]) => `<div class="card kpi"><span>${l}</span><b>${n}</b></div>`).join('')}
     </div>
     <p class="muted" style="margin-bottom:18px">Joined ${fmtDate(m.createdAt)} · Last sign-in ${m.lastLoginAt ? relTime(m.lastLoginAt) : 'never'}${m.externalId ? ` · Partner ID <code>${esc(m.externalId)}</code>` : ''}</p>
