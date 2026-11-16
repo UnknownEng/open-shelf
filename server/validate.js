@@ -50,8 +50,13 @@ function httpsUrl(value, label, { optional = true, allowLocalHttp = false } = {}
 
 function color(value, fallback) {
   if (!value) return fallback;
-  if (!/^#[0-9a-f]{6}$/i.test(value)) fail('Brand colour must be a hex value like #f4b860.');
+  if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) fail('Brand colour must be a hex value like #f4b860.');
   return value.toLowerCase();
 }
 
-module.exports = { str, int, email, password, oneOf, httpsUrl, color, fail };
+function bool(value, label) {
+  if (typeof value !== 'boolean') fail(`${label} must be true or false.`);
+  return value;
+}
+
+module.exports = { str, int, email, password, oneOf, httpsUrl, color, bool, fail };

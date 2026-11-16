@@ -1,6 +1,6 @@
 'use strict';
 const crypto = require('node:crypto');
-const { one, all, run, now, id } = require('../db');
+const { one, all, run, tx, now, id } = require('../db');
 const v = require('../validate');
 const { HttpError } = require('../http');
 const auth = require('../auth');
@@ -95,10 +95,15 @@ module.exports = function adminRoutes(r) {
     if (!existing) throw new HttpError(404, 'Book not found.');
     const b = await ctx.body();
     const d = bookInput(b, existing);
-    const archived = b.archived === undefined ? existing.archived : Number(!!b.archived);
-    run('UPDATE books SET title=?,author=?,category=?,condition=?,description=?,cover=?,isbn=?,total_copies=?,archived=? WHERE id=?',
-      d.title, d.author, d.category, d.condition, d.description, d.cover, d.isbn, d.totalCopies, archived, existing.id);
-    lib.withEvents(ctx.tenant.id, (events) => lib.promoteWaitlist(existing.id, events));
+    const archived = b.archived === undefined ? existing.archived : Number(v.bool(b.archived, 'archived'));
+    const onLoan = one("SELECT COUNT(*) AS n FROM loans WHERE book_id=? AND status='active'", existing.id).n;
+    if (d.totalCopies < onLoan) throw new HttpError(409, `${onLoan} ${onLoan === 1 ? 'copy is' : 'copies are'} on loan — check them in before reducing copies below that.`);
+    lib.withEvents(ctx.tenant.id, (events) => {
+      run('UPDATE books SET title=?,author=?,category=?,condition=?,description=?,cover=?,isbn=?,total_copies=?,archived=? WHERE id=?',
+        d.title, d.author, d.category, d.condition, d.description, d.cover, d.isbn, d.totalCopies, archived, existing.id);
+      if (archived && !existing.archived) lib.cancelWaitlistForArchived(existing.id);
+      else lib.promoteWaitlist(existing.id, events);
+    });
     audit(ctx.tenant.id, ctx.user, archived && !existing.archived ? 'book.archived' : 'book.updated', existing.id);
     return lib.getBook(ctx.tenant.id, null, existing.id, { includeArchived: true });
   });
@@ -117,27 +122,29 @@ module.exports = function adminRoutes(r) {
     const m = one('SELECT * FROM users WHERE id=? AND tenant_id=?', ctx.params.id, ctx.tenant.id);
     if (!m) throw new HttpError(404, 'Member not found.');
     const b = await ctx.body();
-    if (b.role !== undefined) {
-      if (m.id === ctx.user.id) throw new HttpError(409, 'You cannot change your own role.');
-      if (m.role === 'owner' && ctx.user.role !== 'owner') throw new HttpError(403, 'Only a platform owner can change this account.');
-      const role = v.oneOf(b.role, 'Role', ctx.user.role === 'owner' ? ['member', 'admin', 'owner'] : ['member', 'admin']);
-      run('UPDATE users SET role=? WHERE id=?', role, m.id);
-      audit(ctx.tenant.id, ctx.user, 'member.role_changed', m.id, { from: m.role, to: role });
-    }
-    if (b.status !== undefined) {
-      if (m.id === ctx.user.id) throw new HttpError(409, 'You cannot suspend yourself.');
-      const status = v.oneOf(b.status, 'Status', ['active', 'suspended']);
-      run('UPDATE users SET status=? WHERE id=?', status, m.id);
-      if (status === 'suspended') run('DELETE FROM sessions WHERE user_id=?', m.id);
-      audit(ctx.tenant.id, ctx.user, `member.${status === 'active' ? 'reactivated' : 'suspended'}`, m.id);
-    }
-    if (b.creditDelta !== undefined) {
-      const delta = v.int(b.creditDelta, 'Credit change', { min: -100, max: 100 });
+    if (m.role === 'owner' && ctx.user.role !== 'owner') throw new HttpError(403, 'Only a platform owner can change this account.');
+    if (m.id === ctx.user.id && (b.role !== undefined || b.status !== undefined)) throw new HttpError(409, 'You cannot change your own role or status.');
+    // Validate every field first, then apply them together — never half-apply a request.
+    const role = b.role === undefined ? undefined : v.oneOf(b.role, 'Role', ctx.user.role === 'owner' ? ['member', 'admin', 'owner'] : ['member', 'admin']);
+    const status = b.status === undefined ? undefined : v.oneOf(b.status, 'Status', ['active', 'suspended']);
+    const delta = b.creditDelta === undefined ? 0 : v.int(b.creditDelta, 'Credit change', { min: -100, max: 100 });
+    const reason = v.str(b.reason, 'Reason', { max: 60, optional: true }) || 'staff_adjustment';
+    if (delta && m.credits + delta < 0) throw new HttpError(409, `Member only has ${m.credits} credits.`);
+    tx(() => {
+      if (role !== undefined) {
+        run('UPDATE users SET role=? WHERE id=?', role, m.id);
+        audit(ctx.tenant.id, ctx.user, 'member.role_changed', m.id, { from: m.role, to: role });
+      }
+      if (status !== undefined) {
+        run('UPDATE users SET status=? WHERE id=?', status, m.id);
+        if (status === 'suspended') run('DELETE FROM sessions WHERE user_id=?', m.id);
+        audit(ctx.tenant.id, ctx.user, `member.${status === 'active' ? 'reactivated' : 'suspended'}`, m.id);
+      }
       if (delta) {
-        adjustCredits(m.id, delta, v.str(b.reason, 'Reason', { max: 60, optional: true }) || 'staff_adjustment');
+        adjustCredits(m.id, delta, reason);
         audit(ctx.tenant.id, ctx.user, 'member.credits_adjusted', m.id, { delta });
       }
-    }
+    });
     return { ok: true };
   });
 

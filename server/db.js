@@ -80,6 +80,20 @@ const MIGRATIONS = [
   // 3 — optional second title (e.g. the Urdu title, printed on covers)
   `ALTER TABLE books ADD COLUMN alt_title TEXT;
    UPDATE tenants SET brand_color='#c8ff3d' WHERE id='default' AND brand_color='#f4b860';`,
+
+  // 4 — one-time catalogue fix-ups for older databases (previously re-run on every boot), unique partner IDs
+  (database) => {
+    const { CATALOGUE } = require('./seed');
+    database.exec(`UPDATE books SET isbn='9780143118527' WHERE id='b1' AND isbn='9780143426176';
+                   UPDATE books SET isbn='9780307388179' WHERE id='b3' AND isbn='9788184001754';`);
+    const fill = database.prepare("UPDATE books SET isbn=?, total_copies=?, cover='', category=? WHERE id=? AND isbn IS NULL");
+    const urdu = database.prepare('UPDATE books SET alt_title=? WHERE id=? AND alt_title IS NULL');
+    for (const [bookId, , , category, , isbn, copies, , alt] of CATALOGUE) {
+      if (isbn) fill.run(isbn, copies, category, bookId);
+      if (alt) urdu.run(alt, bookId);
+    }
+    database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_external ON users(tenant_id, external_id) WHERE external_id IS NOT NULL;');
+  },
 ];
 
 function migrate() {
@@ -87,7 +101,7 @@ function migrate() {
   for (let v = current; v < MIGRATIONS.length; v++) {
     db.exec('BEGIN');
     try {
-      db.exec(MIGRATIONS[v]);
+      if (typeof MIGRATIONS[v] === 'function') MIGRATIONS[v](db); else db.exec(MIGRATIONS[v]);
       db.exec(`PRAGMA user_version = ${v + 1}`);
       db.exec('COMMIT');
     } catch (err) {

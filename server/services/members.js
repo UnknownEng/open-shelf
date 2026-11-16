@@ -22,6 +22,7 @@ async function createMember(tenant, { name, email, city = '', password = null, e
   } catch (err) {
     // Two simultaneous sign-ups with the same email: the UNIQUE constraint decides the winner.
     if (/UNIQUE constraint failed: users\.email/.test(err.message)) throw new HttpError(409, 'An account with that email already exists.');
+    if (/UNIQUE constraint failed: users\.tenant_id, users\.external_id/.test(err.message)) throw new HttpError(409, 'A member with that externalId already exists.');
     throw err;
   }
   return getMember(userId);

@@ -40,14 +40,10 @@ const CATALOGUE = [
 
 function seedCatalogue() {
   tx(() => {
-    // Replace two Indian-edition ISBNs used by early versions (their covers never loaded).
-    run("UPDATE books SET isbn='9780143118527' WHERE id='b1' AND isbn='9780143426176'");
-    run("UPDATE books SET isbn='9780307388179' WHERE id='b3' AND isbn='9788184001754'");
+    // Only inserts missing starter titles — never touches books staff may have edited.
+    // (One-time fix-ups for older databases live in migration 4 in db.js.)
     for (const [bookId, title, author, category, condition, isbn, copies, description, urdu = null] of CATALOGUE) {
-      if (one('SELECT id FROM books WHERE id=?', bookId)) {
-        if (isbn) run("UPDATE books SET isbn=?, total_copies=?, cover='', category=? WHERE id=? AND isbn IS NULL", isbn, copies, category, bookId);
-        if (urdu) run('UPDATE books SET alt_title=? WHERE id=? AND alt_title IS NULL', urdu, bookId);
-      } else {
+      if (!one('SELECT id FROM books WHERE id=?', bookId)) {
         run("INSERT INTO books(id,tenant_id,title,author,category,condition,description,cover,isbn,total_copies,alt_title,created_at) VALUES(?,'default',?,?,?,?,?,'',?,?,?,?)",
           bookId, title, author, category, condition, description, isbn, copies, urdu, now());
       }

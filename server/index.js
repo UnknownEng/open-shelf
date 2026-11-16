@@ -87,6 +87,7 @@ async function handleApi(req, res, url) {
     const found = router.match(req.method, url.pathname);
     if (!found) throw new HttpError(404, 'Endpoint not found.');
     if (found.methodNotAllowed) throw new HttpError(405, 'Method not allowed.');
+    if (found.badRequest) throw new HttpError(400, 'Malformed URL.');
     const { route, params } = found;
     ctx.params = params;
 

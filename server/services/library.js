@@ -71,9 +71,10 @@ function listBooks(tenantId, viewerId, opts = {}) {
   const { sql, params } = bookQuery(tenantId, viewerId, opts);
   const avail = opts.availability === 'available' ? 'WHERE (total_copies - on_loan - held) > 0'
     : opts.availability === 'borrowed' ? 'WHERE (total_copies - on_loan - held) <= 0' : '';
-  const order = SORTS[opts.sort] || SORTS.new;
-  const limit = Math.min(Math.max(Number(opts.limit) || 60, 1), 200);
-  const offset = Math.max(Number(opts.offset) || 0, 0);
+  const order = Object.hasOwn(SORTS, opts.sort || '') ? SORTS[opts.sort] : SORTS.new;
+  const num = (x, d) => (Number.isFinite(Number(x)) ? Math.trunc(Number(x)) : d);
+  const limit = Math.min(Math.max(num(opts.limit, 60) || 60, 1), 200);
+  const offset = Math.min(Math.max(num(opts.offset, 0), 0), 1_000_000);
   const items = all(`SELECT * FROM (${sql}) x ${avail} ORDER BY ${order} LIMIT ? OFFSET ?`, ...params, limit, offset).map(toBook);
   const total = one(`SELECT COUNT(*) AS n FROM (${sql}) x ${avail}`, ...params).n;
   const categories = all('SELECT category, COUNT(*) AS n FROM books WHERE tenant_id=? AND archived=0 GROUP BY category ORDER BY category', tenantId);
@@ -156,6 +157,7 @@ function renew(user, loanId) {
   const result = withEvents(user.tenant_id, (events) => {
     const loan = one("SELECT l.*, b.title FROM loans l JOIN books b ON b.id=l.book_id WHERE l.id=? AND l.user_id=? AND l.status='active'", loanId, user.id);
     if (!loan) throw new HttpError(404, 'Active loan not found.');
+    if (loan.due_at < now()) throw new HttpError(409, 'This loan is overdue, so it cannot be renewed. Please return it.');
     if (loan.renewals >= MAX_RENEWALS) throw new HttpError(409, 'This loan has already been renewed. Please return it when you are done.');
     if (one("SELECT id FROM reservations WHERE book_id=? AND status='waiting' LIMIT 1", loan.book_id)) throw new HttpError(409, 'Another reader is waiting for this book, so it cannot be renewed.');
     const dueAt = new Date(new Date(loan.due_at).getTime() + RENEW_DAYS * DAY).toISOString();
@@ -169,12 +171,13 @@ function renew(user, loanId) {
 
 /** Hand freed copies to the next members in the waitlist (FIFO). */
 function promoteWaitlist(bookId, events) {
-  const book = one('SELECT id, title, tenant_id, total_copies FROM books WHERE id=?', bookId);
+  const book = one('SELECT id, title, tenant_id, total_copies, archived FROM books WHERE id=?', bookId);
+  if (!book || book.archived) return;
   for (;;) {
     const onLoan = one("SELECT COUNT(*) AS n FROM loans WHERE book_id=? AND status='active'", bookId).n;
     const ready = one("SELECT COUNT(*) AS n FROM reservations WHERE book_id=? AND status='ready'", bookId).n;
     if (book.total_copies - onLoan - ready < 1) return;
-    const next = one("SELECT * FROM reservations WHERE book_id=? AND status='waiting' ORDER BY created_at LIMIT 1", bookId);
+    const next = one("SELECT r.* FROM reservations r JOIN users u ON u.id=r.user_id WHERE r.book_id=? AND r.status='waiting' AND u.status='active' ORDER BY r.created_at LIMIT 1", bookId);
     if (!next) return;
     const expiresAt = new Date(Date.now() + RESERVATION_HOLD_HOURS * 3_600_000).toISOString();
     run("UPDATE reservations SET status='ready', ready_at=?, expires_at=? WHERE id=?", now(), expiresAt, next.id);
@@ -268,7 +271,17 @@ function runJobs() {
   return { overdue: overdue.length, expiredHolds: expired.length };
 }
 
+/** Archiving a title cancels its waitlist and tells everyone who was waiting. */
+function cancelWaitlistForArchived(bookId) {
+  const book = one('SELECT title FROM books WHERE id=?', bookId);
+  for (const r of all("SELECT id, user_id FROM reservations WHERE book_id=? AND status IN ('waiting','ready')", bookId)) {
+    run("UPDATE reservations SET status='cancelled' WHERE id=?", r.id);
+    notify(r.user_id, 'reservation', `“${book.title}” is no longer available`, 'The library removed this title, so your place in line was cancelled.');
+  }
+}
+
 module.exports = {
+  cancelWaitlistForArchived,
   listBooks, getBook, toBook, coverFor, borrow, returnLoan, renew, reserve, cancelReservation,
   addReview, shelf, runJobs, promoteWaitlist, withEvents,
 };

@@ -22,7 +22,11 @@ function audit(tenantId, actor, action, target, meta = {}) {
 function emit(tenantId, event, data) {
   const hooks = all('SELECT * FROM webhooks WHERE tenant_id=? AND active=1', tenantId)
     .filter((h) => h.events === '*' || h.events.split(',').map((s) => s.trim()).includes(event));
-  for (const hook of hooks) deliver(hook, event, data);
+  for (const hook of hooks) {
+    const p = deliver(hook, event, data);
+    // On Vercel, keep the function alive until delivery completes (what @vercel/functions' waitUntil does).
+    try { globalThis[Symbol.for('@vercel/request-context')]?.get?.()?.waitUntil?.(p); } catch { /* not on Vercel */ }
+  }
 }
 
 async function deliver(hook, event, data) {

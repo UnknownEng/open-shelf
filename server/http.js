@@ -31,15 +31,18 @@ function parseCookies(req) {
   const out = {};
   for (const part of (req.headers.cookie || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i <= 0) continue;
+    const raw = part.slice(i + 1).trim();
+    // A malformed cookie set by some other script must never break the API.
+    try { out[part.slice(0, i).trim()] = decodeURIComponent(raw); } catch { out[part.slice(0, i).trim()] = raw; }
   }
   return out;
 }
 
 function readBody(req, limit = 256_000) {
   return new Promise((resolve, reject) => {
-    const type = String(req.headers['content-type'] || '');
-    if (!type.includes('application/json')) {
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (type !== 'application/json') {
       reject(new HttpError(415, 'Send a JSON request body (Content-Type: application/json).'));
       req.resume();
       return;
@@ -48,10 +51,14 @@ function readBody(req, limit = 256_000) {
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > limit) { reject(new HttpError(413, 'Request body is too large.')); req.destroy(); }
-      else chunks.push(c);
+      if (size > limit) {
+        if (!req.tooLarge) { req.tooLarge = true; reject(new HttpError(413, 'Request body is too large.')); }
+        return; // keep draining so the 413 response can be delivered
+      }
+      chunks.push(c);
     });
     req.on('end', () => {
+      if (req.tooLarge) return;
       try {
         const raw = Buffer.concat(chunks).toString('utf8');
         const parsed = raw ? JSON.parse(raw) : {};

@@ -28,7 +28,11 @@ class Router {
       pathMatched = true;
       if (route.method !== method) continue;
       const params = {};
-      route.keys.forEach((k, i) => { params[k] = decodeURIComponent(m[i + 1]); });
+      try {
+        route.keys.forEach((k, i) => { params[k] = decodeURIComponent(m[i + 1]); });
+      } catch {
+        return { badRequest: true };
+      }
       return { route, params };
     }
     return pathMatched ? { methodNotAllowed: true } : null;

@@ -31,7 +31,7 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
       run('INSERT INTO users(id,tenant_id,name,email,password_hash,city,role,credits,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
         uid, 'default', name, email, hashPassword(pw), pick(CITIES), role, credits, ago(createdDaysAgo, 20));
       run("INSERT INTO memberships(id,user_id,plan,status,started_at) VALUES(?,?,'reader','active',?)", id(), uid, ago(createdDaysAgo));
-      run("INSERT INTO credit_ledger(id,user_id,delta,reason,created_at) VALUES(?,?,3,'welcome',?)", id(), uid, ago(createdDaysAgo));
+      run("INSERT INTO credit_ledger(id,user_id,delta,reason,created_at) VALUES(?,?,?,'welcome',?)", id(), uid, credits, ago(createdDaysAgo));
       return uid;
     };
     mk('Library Admin', 'admin@openshelf.test', adminPassword, 'owner', 40, 10);
@@ -68,6 +68,8 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
         if (returnedMs < Date.now() - DAY) {
           run("INSERT INTO loans(id,tenant_id,book_id,user_id,status,borrowed_at,due_at,returned_at) VALUES(?,'default',?,?,'returned',?,?,?)",
             loanId, b.id, u, borrowed, due, new Date(returnedMs).toISOString());
+          run("INSERT INTO credit_ledger(id,user_id,loan_id,delta,reason,created_at) VALUES(?,?,?,-1,'borrow',?)", id(), u, loanId, borrowed);
+          run("INSERT INTO credit_ledger(id,user_id,loan_id,delta,reason,created_at) VALUES(?,?,?,1,'return',?)", id(), u, loanId, new Date(returnedMs).toISOString());
           if (Math.random() < 0.45) {
             run('INSERT OR IGNORE INTO reviews(id,book_id,user_id,rating,body,created_at) VALUES(?,?,?,?,?,?)',
               id(), b.id, u, pick([5, 5, 4, 4, 4, 3, 5]), pick(REVIEWS), new Date(returnedMs).toISOString());
@@ -75,11 +77,12 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
         } else {
           const onLoan = activeByBook.get(b.id) || 0;
           const key = `${u}:${b.id}`;
-          if (onLoan >= b.total_copies || activeByUser.has(key) || Math.random() < 0.6) continue;
+          if (onLoan >= b.total_copies || activeByUser.has(key) || Math.random() < 0.6 || one('SELECT credits FROM users WHERE id=?', u).credits < 1) continue;
           activeByBook.set(b.id, onLoan + 1);
           activeByUser.add(key);
           run("INSERT INTO loans(id,tenant_id,book_id,user_id,status,borrowed_at,due_at) VALUES(?,'default',?,?,'active',?,?)", loanId, b.id, u, borrowed, due);
-          run('UPDATE users SET credits=MAX(credits-1,0) WHERE id=?', u);
+          run('UPDATE users SET credits=credits-1 WHERE id=?', u);
+          run("INSERT INTO credit_ledger(id,user_id,loan_id,delta,reason,created_at) VALUES(?,?,?,-1,'borrow',?)", id(), u, loanId, borrowed);
         }
       }
     }
@@ -87,7 +90,12 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
     for (const b of books.slice(10, 12)) {
       if ((activeByBook.get(b.id) || 0) >= b.total_copies) continue;
       activeByBook.set(b.id, (activeByBook.get(b.id) || 0) + 1);
-      run("INSERT INTO loans(id,tenant_id,book_id,user_id,status,borrowed_at,due_at) VALUES(?,'default',?,?,'active',?,?)", id(), b.id, pick(members.slice(1)), ago(26), ago(5));
+      const late = members.slice(1).find((m) => one('SELECT credits FROM users WHERE id=?', m).credits > 0);
+      if (!late) continue;
+      const lateLoan = id();
+      run("INSERT INTO loans(id,tenant_id,book_id,user_id,status,borrowed_at,due_at) VALUES(?,'default',?,?,'active',?,?)", lateLoan, b.id, late, ago(26), ago(5));
+      run('UPDATE users SET credits=credits-1 WHERE id=?', late);
+      run("INSERT INTO credit_ledger(id,user_id,loan_id,delta,reason,created_at) VALUES(?,?,?,-1,'borrow',?)", id(), late, lateLoan, ago(26));
     }
   });
   return true;
