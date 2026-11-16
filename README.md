@@ -12,7 +12,10 @@ Zero runtime dependencies: Node.js 22.13+ (built-in `node:sqlite`), vanilla JS f
 npm run demo     # seeds openshelf-demo.sqlite with 40 members + 30 days of history, then serves http://localhost:3000
 npm start        # real database (openshelf.sqlite), no demo data
 npm test         # end-to-end API tests on a throwaway database
+npm run test:e2e # 30 real-browser tests (needs Chrome + `npm i --no-save playwright-core`)
 ```
+
+Staff console: **/admin** (own sign-in page). Project skills for re-running the evaluations live in `.claude/skills/` (`/load-test`, `/red-team`, `/qa-sweep`, `/ux-study`, `/judge-panel`).
 
 Demo accounts (local demo database only):
 
@@ -62,6 +65,7 @@ Security: scrypt password hashing, HttpOnly SameSite session cookies (stored as 
 
 ## Production checklist
 
+- On the Vercel demo, set `DEMO_ADMIN_PASSWORD` (Project → Settings → Environment Variables); without it the demo admin account is locked with a random password.
 - Run behind HTTPS with `NODE_ENV=production` (adds `Secure` cookies) and `PUBLIC_URL=https://your-domain`.
 - Set `TRUST_PROXY=1` when behind a load balancer so rate limits see real client IPs.
 - Back up the SQLite file (or move to Postgres before multi-instance scale-out). Replace the in-memory rate limiter with Redis when running several instances.

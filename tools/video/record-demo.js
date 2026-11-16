@@ -21,7 +21,7 @@ const STEPS = [
   { say: 'Partners plug it into their own platform through a complete API.', cap: 'Built to plug into partner platforms' },
   { say: 'The catalogue mixes Urdu classics and English bestsellers, with live availability and instant search.', cap: 'Urdu adab + English · live availability' },
   { say: 'Every book has its own page, with copies, reviews, and one tap to borrow.', cap: 'Book page with copies and reviews' },
-  { say: 'Borrowing costs one credit, and the book flies straight onto your shelf.', cap: 'One credit → straight onto your shelf' },
+  { say: 'Borrowing costs one credit. The book flies onto your shelf, and you are told exactly where to collect it.', cap: 'One credit → onto your shelf → pickup info' },
   { say: 'Your shelf tracks due dates, renewals, your waitlist, and your credit wallet.', cap: 'My shelf: due dates, renewals, wallet' },
   { say: 'Library staff sign in at slash admin, to a live console with members, loans and trends.', cap: '/admin — staff console with live analytics' },
   { say: 'Developers get API keys, signed webhooks, and a full endpoint reference.', cap: 'Partner API · SSO links · signed webhooks' },
@@ -93,7 +93,11 @@ async function main() {
   const ticker = setInterval(() => page.evaluate(() => { document.body.style.outlineColor = `rgba(0,0,0,${Math.random() * 0.01})`; }).catch(() => {}), 40);
 
   const marks = [];
-  const shot = (name) => page.screenshot({ path: path.join(OUT, 'screenshots', `${name}.png`) });
+  // Direct capture (page.screenshot waits for every web font and stalled the recording by up to 30s).
+  const shot = async (name) => {
+    const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(OUT, 'screenshots', `${name}.png`), Buffer.from(data, 'base64'));
+  };
 
   async function step(i, act) {
     const started = Date.now();
@@ -132,6 +136,7 @@ async function main() {
     await shot('03-browse');
     await page.fill('#q', '');
     await page.dispatchEvent('#q', 'input');
+    await sleep(1000); // chips re-render after the search clears
     const chip = page.locator('.chip', { hasText: 'Urdu adab' });
     await chip.first().scrollIntoViewIfNeeded();
     const cb = await chip.first().boundingBox();
@@ -166,7 +171,9 @@ async function main() {
     await glide(page, bb.x + bb.width / 2, bb.y + bb.height / 2);
     await sleep(300);
     await btn.click();
-    await sleep(2600);
+    await sleep(3400); // book flies to the shelf, then the "Go get your book" pickup sheet appears
+    await page.keyboard.press('Escape');
+    await sleep(500);
     await page.keyboard.press('Escape');
     await sleep(500);
   });
