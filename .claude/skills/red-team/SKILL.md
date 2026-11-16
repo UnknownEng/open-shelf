@@ -12,7 +12,7 @@ Local target (keep real rate limits):
 export DB_PATH="$TEMP/os-redteam.sqlite"; rm -f "$DB_PATH"*; node server/demo.js
 PORT=3206 LOG=0 node server/index.js &
 ```
-Demo accounts (local only): admin@openshelf.test / DemoAdmin!2026 (owner), reader@openshelf.test / DemoReader!2026.
+Demo accounts (local only): printed by `node server/demo.js` when it seeds the throwaway database.
 
 Checklist: auth bypass, session handling, brute force vs per-IP and per-email limits (incl. X-Forwarded-For spoofing), privilege escalation (member→admin→owner, mass assignment on PATCH /api/me), IDOR across users and tenants (create a 2nd tenant; X-Tenant header), credit fraud & race conditions (parallel borrow/return/renew/reserve), SQL injection, stored XSS (CSP is script-src 'self'), CSRF (foreign Origin, text/plain), SSRF via webhook URLs, SSO link reuse/expiry, revoked API keys, CSV formula injection (/api/admin/export/:kind), static path traversal, oversized bodies, error/header disclosure, cookie flags, CDN caching of private responses on the live site.
 

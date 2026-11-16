@@ -136,7 +136,7 @@ export async function renderHome(app, { anchor } = {}) {
         ${store.isStaff ? '<a class="btn btn-ghost lg" href="/admin">Open console</a>' : ''}
       </div>
     </div>
-    <footer class="footer"><span>© ${new Date().getFullYear()} ${esc(brand)} · Made in Pakistan 🇵🇰 for readers</span>
+    <footer class="footer"><span>© ${new Date().getFullYear()} ${esc(brand)} · Made in Pakistan 🇵🇰 by <b>Maverick Technologies</b></span>
       <nav><a href="#/browse">Browse</a><a href="#/#platforms">Platforms</a><a href="/api/openapi.json" target="_blank" rel="noopener">API</a></nav></footer>
   </section>`;
 

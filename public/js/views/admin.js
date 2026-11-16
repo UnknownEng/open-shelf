@@ -17,7 +17,8 @@ export async function renderAdmin(app, { sub } = {}) {
   let loadToken = 0;
   app.innerHTML = `<section class="wrap console">
     <aside class="side"><div class="side-title">${esc(store.tenant?.name || 'Console')}</div>
-      ${tabs.map(([k, i, l]) => `<button data-tab="${k}" class="${k === current ? 'active' : ''}"><i>${i}</i>${l}</button>`).join('')}</aside>
+      ${tabs.map(([k, i, l]) => `<button data-tab="${k}" class="${k === current ? 'active' : ''}"><i>${i}</i>${l}</button>`).join('')}
+      <small class="side-credit">Open Shelf · by Maverick Technologies</small></aside>
     <div class="console-main" id="cm"></div></section>`;
   const main = $('#cm', app);
   const show = async (k) => {

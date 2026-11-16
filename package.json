@@ -13,5 +13,6 @@
     "make-admin": "node server/index.js make-admin",
     "test": "node --test test/api.test.js",
     "test:e2e": "node --test test/e2e.test.js"
-  }
+  },
+  "author": "Maverick Technologies"
 }

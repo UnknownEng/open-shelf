@@ -14,5 +14,3 @@ description: Load-test Open Shelf with 500 simulated users (full journey locally
 3. Invariants must all be 0 mismatches: `node tools/load/invariants.js "$DB_PATH"` (negative credits, books lent beyond copies, credits ≠ ledger).
 4. Live site: read-only only, one burst: `node tools/load/loadtest.js https://open-shelf-rho.vercel.app read 500`. Never run `full` mode against production (it creates accounts).
 5. Report p50/p95/p99 per endpoint, error count, status-code mix and invariants. Network errors > 0 or p95 > 1s locally (excluding register) is a regression. Kill the local server afterwards.
-
-Baseline (Nov 2026, after async scrypt fix): 500 users / 3,756 requests in 9.8 s, 0 errors, p95 ≈ 0.5 s (register ≈ 5 s by design), all invariants 0.

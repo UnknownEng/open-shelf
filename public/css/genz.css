@@ -348,3 +348,9 @@ html, #app { overflow-x: clip; }
 }
 @media (max-width: 480px) { #joinBtn { padding: 0 10px; } .brand-name { font-size: 16px; } }
 @media (min-width: 861px) { .plain-explain { display: none; } }
+
+/* --- Maverick Technologies credit --- */
+.made-by { position: relative; z-index: 2; margin: 0; padding: 18px 16px 28px; text-align: center; font: 600 13px var(--font-body); color: var(--muted); }
+.made-by b { color: var(--text); }
+.side-credit { display: block; padding: 18px 14px 0; font-size: 12px; color: var(--muted); font-weight: 600; }
+@media (max-width: 860px) { .made-by { padding-bottom: 110px; } .side-credit { display: none; } }

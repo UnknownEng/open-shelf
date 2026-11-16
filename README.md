@@ -1,5 +1,7 @@
 # Open Shelf
 
+_Made by **Maverick Technologies**._
+
 A **white-label, credit-based book lending platform**. Readers borrow physical books with credits, return them for the next reader, and join waitlists when every copy is out. Libraries, campuses and partner platforms run their own branded tenant, with an admin console, a partner REST API, SSO hand-off and signed webhooks.
 
 **Live demo:** https://open-shelf-rho.vercel.app (self-seeding sandbox, data resets when the server restarts)
@@ -17,12 +19,7 @@ npm run test:e2e # 30 real-browser tests (needs Chrome + `npm i --no-save playwr
 
 Staff console: **/admin** (own sign-in page). Project skills for re-running the evaluations live in `.claude/skills/` (`/load-test`, `/red-team`, `/qa-sweep`, `/ux-study`, `/judge-panel`).
 
-Demo accounts (local demo database only):
-
-| Role | Email | Password |
-|---|---|---|
-| Platform owner | `admin@openshelf.test` | `DemoAdmin!2026` |
-| Member | `reader@openshelf.test` | `DemoReader!2026` |
+`npm run demo` prints the demo sign-ins in your terminal. They exist only in your local demo database and do not work on the live site.
 
 Promote a real account: `npm run make-admin -- someone@example.com` (append `owner` for platform owner).
 
@@ -65,7 +62,7 @@ Security: scrypt password hashing, HttpOnly SameSite session cookies (stored as 
 
 ## Production checklist
 
-- On the Vercel demo, set `DEMO_ADMIN_PASSWORD` (Project → Settings → Environment Variables); without it the demo admin account is locked with a random password.
+- On the Vercel demo, set `DEMO_ADMIN_PASSWORD` (and optionally `DEMO_READER_PASSWORD`) in Project → Settings → Environment Variables; without them the demo accounts are locked with random passwords.
 - Run behind HTTPS with `NODE_ENV=production` (adds `Secure` cookies) and `PUBLIC_URL=https://your-domain`.
 - Set `TRUST_PROXY=1` when behind a load balancer so rate limits see real client IPs.
 - Back up the SQLite file (or move to Postgres before multi-instance scale-out). Replace the in-memory rate limiter with Redis when running several instances.
@@ -73,3 +70,6 @@ Security: scrypt password hashing, HttpOnly SameSite session cookies (stored as 
 - Build the Android app against your URL: `cd android && .\gradlew.bat assembleRelease -PopenshelfUrl=https://your-domain`, then configure release signing.
 
 The previous prototype is kept in `_prototype_backup/`.
+
+---
+© Maverick Technologies. All rights reserved.

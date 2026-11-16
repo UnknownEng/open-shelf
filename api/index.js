@@ -9,10 +9,11 @@ process.env.TRUST_PROXY ||= '1';
 
 const { seedDemo } = require('../server/demo');
 if (process.env.DEMO_MODE !== '0') {
-  // Never ship the README's demo owner password to a public URL. Set DEMO_ADMIN_PASSWORD in Vercel to sign in at /admin.
-  const adminPassword = process.env.DEMO_ADMIN_PASSWORD || require('node:crypto').randomBytes(24).toString('base64url');
-  if (!process.env.DEMO_ADMIN_PASSWORD) console.warn('DEMO_ADMIN_PASSWORD is not set: the demo admin account is locked with a random password.');
-  seedDemo({ adminPassword });
+  // Passwords written in the source code must never unlock the public site.
+  // Set DEMO_ADMIN_PASSWORD / DEMO_READER_PASSWORD in Vercel; otherwise both demo accounts are locked with random passwords.
+  const random = () => require('node:crypto').randomBytes(24).toString('base64url');
+  if (!process.env.DEMO_ADMIN_PASSWORD) console.warn('DEMO_ADMIN_PASSWORD is not set: the demo admin account is locked.');
+  seedDemo({ adminPassword: process.env.DEMO_ADMIN_PASSWORD || random(), readerPassword: process.env.DEMO_READER_PASSWORD || random() });
 }
 
 const { handler } = require('../server/index');

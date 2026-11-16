@@ -3,9 +3,9 @@
  * Demo data for sales demos: an admin, a few dozen members and 30 days of
  * realistic lending history so the dashboard has something to show.
  * Run with: npm run demo   (safe to run more than once)
- * Test accounts (local demo only — never use in production):
- *   admin@openshelf.test   / DemoAdmin!2026   (platform owner)
- *   reader@openshelf.test  / DemoReader!2026  (member)
+ * The demo sign-ins are printed in the terminal. They only exist in a LOCAL demo
+ * database; the live deployment uses DEMO_ADMIN_PASSWORD / DEMO_READER_PASSWORD
+ * (or random, locked passwords) instead — see api/index.js.
  */
 const { migrate, one, all, run, tx, id } = require('./db');
 const { hashPasswordSync: hashPassword } = require('./auth');
@@ -13,7 +13,10 @@ const { seedCatalogue } = require('./seed');
 
 
 /** Seed demo members and history. Returns false if demo data already exists. */
-function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmin!2026' } = {}) {
+const LOCAL_ADMIN = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmin!2026'; // local throwaway demo only
+const LOCAL_READER = process.env.DEMO_READER_PASSWORD || 'DemoReader!2026'; // local throwaway demo only
+
+function seedDemo({ adminPassword = LOCAL_ADMIN, readerPassword = LOCAL_READER } = {}) {
   migrate();
   seedCatalogue();
   if (one("SELECT id FROM users WHERE email='admin@openshelf.test'")) return false;
@@ -35,7 +38,7 @@ function seedDemo({ adminPassword = process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmi
       return uid;
     };
     mk('Library Admin', 'admin@openshelf.test', adminPassword, 'owner', 40, 10);
-    const reader = mk('Rida Hassan', 'reader@openshelf.test', 'DemoReader!2026', 'member', 35, 5);
+    const reader = mk('Rida Hassan', 'reader@openshelf.test', readerPassword, 'member', 35, 5);
     const members = [reader];
     for (let i = 0; i < 38; i++) {
       const first = FIRST[i % FIRST.length];
@@ -105,6 +108,6 @@ module.exports = { seedDemo };
 
 if (require.main === module) {
   console.log(seedDemo()
-    ? 'Demo data created. Sign in as admin@openshelf.test / DemoAdmin!2026 (or reader@openshelf.test / DemoReader!2026).'
+    ? `Local demo data created. Sign in as admin@openshelf.test / ${LOCAL_ADMIN} (or reader@openshelf.test / ${LOCAL_READER}). These work on this computer only.`
     : 'Demo data already present.');
 }

@@ -11,7 +11,7 @@ const WORK = path.join(__dirname, 'work-pitch');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const LINES = [
-  "Open Shelf. Pakistan's book sharing library, as a service.",
+  "Open Shelf, by Maverick Technologies. Pakistan's book sharing library, as a service.",
   'Great books sit unread on shelves. New books are expensive, libraries are far away, and readers already own books that others want to read.',
   'Open Shelf fixes that with credits. One credit borrows one book. Return it, and the credit comes straight back, while the next reader on the waitlist is notified.',
   "It's built for Gen Z: mobile first, with Urdu classics and English bestsellers side by side, and fair waitlists.",
@@ -21,7 +21,7 @@ const LINES = [
   'Books move through pickup shelves where readers already are: campuses, offices and cafes. A deposit or partner guarantee covers losses.',
   'Partners pay per active member, plus setup, and can bundle credits into their own plans.',
   "We start with a ninety day pilot, measure active readers, returns and losses, then scale across the partner's network.",
-  "We're looking for our first pilot partners. Let's put a shared library inside your platform. Open Shelf: read it, pass it, repeat.",
+  "We're looking for our first pilot partners. Let's put a shared library inside your platform. Open Shelf, made by Maverick Technologies. Read it, pass it, repeat.",
 ];
 
 async function main() {
