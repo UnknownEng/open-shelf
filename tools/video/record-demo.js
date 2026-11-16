@@ -16,17 +16,17 @@ const W = 1440, H = 900;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const STEPS = [
-  { say: 'This is Open Shelf: a lending platform for real, physical books.', cap: 'Open Shelf — a lending platform for real books' },
-  { say: 'Readers borrow paperbacks with credits, then pass them on to the next reader.', cap: 'Borrow with credits · return · pass it on' },
+  { say: "This is Open Shelf: Pakistan's book sharing library, for real, physical books.", cap: "Open Shelf — Pakistan's book-sharing library" },
+  { say: 'Readers borrow books with credits, then pass them on. No fines, no fees.', cap: 'Borrow with credits · no fines · pass it on' },
   { say: 'Partners plug it into their own platform through a complete API.', cap: 'Built to plug into partner platforms' },
-  { say: 'The catalogue shows live availability, ratings and waitlists, with instant search.', cap: 'Live catalogue: availability, ratings, waitlists' },
+  { say: 'The catalogue mixes Urdu classics and English bestsellers, with live availability and instant search.', cap: 'Urdu adab + English · live availability' },
   { say: 'Every book has its own page, with copies, reviews, and one tap to borrow.', cap: 'Book page with copies and reviews' },
   { say: 'Borrowing costs one credit, and the book flies straight onto your shelf.', cap: 'One credit → straight onto your shelf' },
   { say: 'Your shelf tracks due dates, renewals, your waitlist, and your credit wallet.', cap: 'My shelf: due dates, renewals, wallet' },
-  { say: 'Library staff get a live console with members, loans, utilisation and trends.', cap: 'Staff console with live analytics' },
+  { say: 'Library staff sign in at slash admin, to a live console with members, loans and trends.', cap: '/admin — staff console with live analytics' },
   { say: 'Developers get API keys, signed webhooks, and a full endpoint reference.', cap: 'Partner API · SSO links · signed webhooks' },
   { say: 'And every partner can white-label the whole experience with their own brand colour.', cap: 'White-label: one click re-brands everything' },
-  { say: 'Open Shelf. Every book deserves another reader.', cap: 'Open Shelf — every book deserves another reader' },
+  { say: 'Open Shelf. Read it. Pass it. Repeat.', cap: 'Open Shelf — read it · pass it · repeat' },
 ];
 
 const OVERLAY = `(() => {
@@ -70,7 +70,7 @@ async function main() {
   for (let i = 0; i < 50; i++) { try { if ((await fetch(`${BASE}/api/health`)).ok) break; } catch { /* booting */ } await sleep(100); }
 
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--hide-scrollbars'] });
-  const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, colorScheme: 'dark' });
+  const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, colorScheme: 'light' });
   await context.addInitScript(OVERLAY);
   await context.request.post(`${BASE}/api/auth/login`, { data: { email: 'reader@openshelf.test', password: 'DemoReader!2026' }, headers: { Origin: BASE } });
   const page = await context.newPage();
@@ -132,7 +132,7 @@ async function main() {
     await shot('03-browse');
     await page.fill('#q', '');
     await page.dispatchEvent('#q', 'input');
-    const chip = page.locator('.chip', { hasText: 'Classics' });
+    const chip = page.locator('.chip', { hasText: 'Urdu adab' });
     const cb = await chip.boundingBox();
     await glide(page, cb.x + cb.width / 2, cb.y + cb.height / 2);
     await chip.click();
@@ -182,7 +182,7 @@ async function main() {
     await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin@openshelf.test', password: 'DemoAdmin!2026' }) });
   }, BASE);
   await step(7, async () => {
-    await page.goto(`${BASE}/#/admin/overview`);
+    await page.goto(`${BASE}/admin/overview`);
     await page.reload();
     await page.waitForSelector('.chart-wrap', { timeout: 10000 });
     await startCast();
@@ -212,7 +212,7 @@ async function main() {
     await glide(page, tb.x + 60, tb.y + tb.height / 2);
     await tab.click();
     await sleep(1400);
-    for (const c of ['#8fa8ff', '#5fe0a5', '#e05f8a']) {
+    for (const c of ['#4d5bff', '#ff5fc8', '#ffd23f']) {
       const sw = page.locator(`.swatches [data-c="${c}"]`);
       const sb = await sw.boundingBox();
       await glide(page, sb.x + sb.width / 2, sb.y + sb.height / 2, 12);

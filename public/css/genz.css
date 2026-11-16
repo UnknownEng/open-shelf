@@ -320,3 +320,6 @@ td .mini.danger:hover { background: var(--bad); color: #fff; border-color: var(-
 :root[data-theme="dark"] .stars { color: #ffb02e; }
 .kpi svg { width: 40%; height: 34px; opacity: .45; }
 @media (max-width: 860px) { .search { min-width: 0; flex-basis: 100%; } }
+
+/* Decorations (slanted tickers, orbit rings, flying pages) may bleed past the edge but must never widen the page. */
+html, #app { overflow-x: clip; }

@@ -34,18 +34,25 @@ async function deliver(hook, event, data) {
   const signature = crypto.createHmac('sha256', hook.secret).update(body).digest('hex');
   const started = Date.now();
   let status = 'failed', code = null;
-  try {
-    await assertPublicUrl(hook.url); // re-checked at send time (defeats DNS rebinding)
-    const res = await fetch(hook.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'OpenShelf-Webhooks/1.0', 'X-OpenShelf-Event': event, 'X-OpenShelf-Signature': `sha256=${signature}` },
-      body,
-      signal: AbortSignal.timeout(5000),
-      redirect: 'manual',
-    });
-    code = res.status;
-    status = res.ok ? 'delivered' : 'failed';
-  } catch { /* network error or timeout */ }
+  // Up to 3 attempts (now, +1s, +3s) for network errors, timeouts and 5xx/429 responses.
+  for (const [attempt, wait] of [[1, 0], [2, 1000], [3, 3000]]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      await assertPublicUrl(hook.url); // re-checked at send time (defeats DNS rebinding)
+      const res = await fetch(hook.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'OpenShelf-Webhooks/1.0', 'X-OpenShelf-Event': event, 'X-OpenShelf-Signature': `sha256=${signature}`, 'X-OpenShelf-Attempt': String(attempt) },
+        body,
+        signal: AbortSignal.timeout(5000),
+        redirect: 'manual',
+      });
+      code = res.status;
+      status = res.ok ? 'delivered' : 'failed';
+      if (res.ok || (res.status < 500 && res.status !== 429)) break; // success, or a client error retrying won't fix
+    } catch (err) {
+      if (/public internet address|private or internal/.test(err.message)) break; // blocked target: never retry
+    }
+  }
   try {
     if (one('SELECT id FROM webhooks WHERE id=?', hook.id)) {
       run('INSERT INTO webhook_deliveries(id,webhook_id,event,status,response_code,duration_ms,created_at) VALUES(?,?,?,?,?,?,?)',

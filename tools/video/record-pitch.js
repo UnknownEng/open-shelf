@@ -11,16 +11,17 @@ const WORK = path.join(__dirname, 'work-pitch');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const LINES = [
-  'Open Shelf. Library as a service, for physical books.',
-  "Millions of great books sit unread on shelves. Buying new is expensive, libraries are hard to reach, and e-book subscriptions don't cover the paperbacks people actually want.",
+  "Open Shelf. Pakistan's book sharing library, as a service.",
+  'Great books sit unread on shelves. New books are expensive, libraries are far away, and readers already own books that others want to read.',
   'Open Shelf fixes that with credits. One credit borrows one book. Return it, and the credit comes straight back, while the next reader on the waitlist is notified.',
-  "It's a polished, mobile-first product, with a live catalogue, instant search, ratings, and fair waitlists.",
+  "It's built for Gen Z: mobile first, with Urdu classics and English bestsellers side by side, and fair waitlists.",
   'Readers manage due dates, renewals, and their credit wallet in one place.',
-  'Libraries run everything from a live console, with utilisation, overdue tracking, growth trends, and a full audit log.',
-  'And it is built for partners. Universities, telecoms, bookstores and benefit platforms can launch a branded library in days, using our API, single sign-on links, and signed webhooks.',
-  'Partners pay per active member, with setup and enterprise tiers, and can bundle credits into their own plans, so every borrow drives engagement on their platform.',
-  "We start with a ninety day pilot, measure borrowing, retention and on-time returns, then scale across the partner's network.",
-  "We're looking for our first pilot partners. Let's put a shared library inside your platform. Open Shelf: every book deserves another reader.",
+  'Libraries run everything from a live console, with utilisation, overdue tracking, exports, and a full audit log.',
+  'And it is built for partners. Universities, offices, telecoms and bookstores can launch a branded library in days, through our API, single sign-on links, and signed webhooks.',
+  'Books move through pickup shelves where readers already are: campuses, offices and cafes. A deposit or partner guarantee covers losses.',
+  'Partners pay per active member, plus setup, and can bundle credits into their own plans.',
+  "We start with a ninety day pilot, measure active readers, returns and losses, then scale across the partner's network.",
+  "We're looking for our first pilot partners. Let's put a shared library inside your platform. Open Shelf: read it, pass it, repeat.",
 ];
 
 async function main() {

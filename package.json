@@ -2,7 +2,7 @@
   "name": "open-shelf",
   "version": "2.0.0",
   "private": true,
-  "description": "Open Shelf — a white-label, credit-based book lending platform with partner API, webhooks and admin console",
+  "description": "Open Shelf \u2014 a white-label, credit-based book lending platform with partner API, webhooks and admin console",
   "engines": {
     "node": "24.x"
   },
@@ -11,6 +11,7 @@
     "dev": "node --watch server/index.js",
     "demo": "node server/demo.js --demo && node server/index.js --demo",
     "make-admin": "node server/index.js make-admin",
-    "test": "node --test test/api.test.js"
+    "test": "node --test test/api.test.js",
+    "test:e2e": "node --test test/e2e.test.js"
   }
 }
